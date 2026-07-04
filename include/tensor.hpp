@@ -22,7 +22,7 @@ class Tensor {
   const std::vector<std::size_t>& shape() const { return shape_; }
   const std::vector<std::size_t>& strides() const { return strides_; }
 
-  // get index
+  // get data from index
   template <typename... Args>
   float& operator()(Args... args) {
     static_assert((std::is_integral_v<Args> && ...));
