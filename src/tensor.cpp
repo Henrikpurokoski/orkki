@@ -33,3 +33,199 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
   std::generate(data_first, data_first + data_len, gen);
   return vec;
 };
+
+// elementwise arithmetic
+Tensor Tensor::operator+(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] + other.data_[i];
+  }
+
+  return result;
+};
+
+Tensor Tensor::operator-(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] - other.data_[i];
+  }
+
+  return result;
+};
+
+Tensor Tensor::operator*(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] * other.data_[i];
+  }
+
+  return result;
+};
+
+Tensor Tensor::operator/(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] / other.data_[i];
+  }
+
+  return result;
+};
+
+// scalar arithmetic
+Tensor Tensor::operator+(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] + scalar;
+  }
+
+  return result;
+}
+
+Tensor Tensor::operator-(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] - scalar;
+  }
+
+  return result;
+}
+
+Tensor Tensor::operator*(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] * scalar;
+  }
+
+  return result;
+}
+
+Tensor Tensor::operator/(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] / scalar;
+  }
+
+  return result;
+}
+
+// elementwise compound arithmetic
+Tensor& Tensor::operator+=(const Tensor& other) {
+  assert(shape_ == other.shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] += other.data_[i];
+  }
+
+  return *this;
+}
+
+Tensor& Tensor::operator-=(const Tensor& other) {
+  assert(shape_ == other.shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] -= other.data_[i];
+  }
+
+  return *this;
+}
+
+Tensor& Tensor::operator*=(const Tensor& other) {
+  assert(shape_ == other.shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] *= other.data_[i];
+  }
+
+  return *this;
+}
+
+Tensor& Tensor::operator/=(const Tensor& other) {
+  assert(shape_ == other.shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] /= other.data_[i];
+  }
+
+  return *this;
+}
+
+// scalar compound arithmetic
+Tensor& Tensor::operator+=(const float scalar) {
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] += scalar;
+  }
+
+  return *this;
+}
+
+Tensor& Tensor::operator-=(const float scalar) {
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] -= scalar;
+  }
+
+  return *this;
+}
+
+Tensor& Tensor::operator*=(const float scalar) {
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] *= scalar;
+  }
+
+  return *this;
+}
+
+Tensor& Tensor::operator/=(const float scalar) {
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    data_[i] /= scalar;
+  }
+
+  return *this;
+}
