@@ -36,3 +36,83 @@ TEST_CASE("indexing") {
   CHECK(t(1, 0) == 2);
   CHECK(t(1, 1) == 3);
 }
+
+TEST_CASE("plus") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 2});
+
+  float value = 1.0f;
+  for (std::size_t i = 0; i < 2; i++) {
+    for (std::size_t j = 0; j < 2; j++) {
+      t_a(i, j) = value;
+      t_b(i, j) = value;
+    }
+  }
+
+  Tensor t_c = t_a + t_b;
+
+  CHECK(t_c(0, 0) == 2);
+  CHECK(t_c(0, 1) == 2);
+  CHECK(t_c(1, 0) == 2);
+  CHECK(t_c(1, 1) == 2);
+}
+
+TEST_CASE("minus") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 2});
+
+  float value = 2.0f;
+  for (std::size_t i = 0; i < 2; i++) {
+    for (std::size_t j = 0; j < 2; j++) {
+      t_a(i, j) = value;
+      t_b(i, j) = value - 1;
+    }
+  }
+
+  Tensor t_c = t_a - t_b;
+
+  CHECK(t_c(0, 0) == 1);
+  CHECK(t_c(0, 1) == 1);
+  CHECK(t_c(1, 0) == 1);
+  CHECK(t_c(1, 1) == 1);
+}
+
+TEST_CASE("multiplies") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 2});
+
+  float value = 2.0f;
+  for (std::size_t i = 0; i < 2; i++) {
+    for (std::size_t j = 0; j < 2; j++) {
+      t_a(i, j) = value;
+      t_b(i, j) = value;
+    }
+  }
+
+  Tensor t_c = t_a * t_b;
+
+  CHECK(t_c(0, 0) == 4);
+  CHECK(t_c(0, 1) == 4);
+  CHECK(t_c(1, 0) == 4);
+  CHECK(t_c(1, 1) == 4);
+}
+
+TEST_CASE("divides") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 2});
+
+  float value = 2.0f;
+  for (std::size_t i = 0; i < 2; i++) {
+    for (std::size_t j = 0; j < 2; j++) {
+      t_a(i, j) = value;
+      t_b(i, j) = value;
+    }
+  }
+
+  Tensor t_c = t_a / t_b;
+
+  CHECK(t_c(0, 0) == 1);
+  CHECK(t_c(0, 1) == 1);
+  CHECK(t_c(1, 0) == 1);
+  CHECK(t_c(1, 1) == 1);
+}

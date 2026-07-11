@@ -33,3 +33,47 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
   std::generate(data_first, data_first + data_len, gen);
   return vec;
 };
+
+Tensor Tensor::operator+(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::transform(data_.begin(), data_.end(), other.data_.begin(),
+                 result.data_.begin(), std::plus<float>());
+
+  return result;
+};
+
+Tensor Tensor::operator-(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::transform(data_.begin(), data_.end(), other.data_.begin(),
+                 result.data_.begin(), std::minus<float>());
+
+  return result;
+};
+
+Tensor Tensor::operator*(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::transform(data_.begin(), data_.end(), other.data_.begin(),
+                 result.data_.begin(), std::multiplies<float>());
+
+  return result;
+};
+
+Tensor Tensor::operator/(const Tensor& other) const {
+  assert(shape_ == other.shape_);
+
+  Tensor result(shape_);
+
+  std::transform(data_.begin(), data_.end(), other.data_.begin(),
+                 result.data_.begin(), std::divides<float>());
+
+  return result;
+};

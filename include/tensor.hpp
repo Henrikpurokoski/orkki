@@ -53,6 +53,12 @@ class Tensor {
     return data_[flat_index];
   }
 
+  // elementwise arithmetic
+  Tensor operator+(const Tensor& other) const;
+  Tensor operator-(const Tensor& other) const;
+  Tensor operator*(const Tensor& other) const;
+  Tensor operator/(const Tensor& other) const;
+
  private:
   // basic constructor
   Tensor(const std::vector<std::size_t>& shape);
