@@ -229,3 +229,18 @@ Tensor& Tensor::operator/=(const float scalar) {
 
   return *this;
 }
+
+// reductions
+float Tensor::sum() const {
+  return std::accumulate(data_.begin(), data_.end(), 0.0f);
+}
+
+float Tensor::mean() const { return sum() / static_cast<float>(data_.size()); }
+
+float Tensor::max() const {
+  return *std::max_element(data_.begin(), data_.end());
+}
+
+float Tensor::min() const {
+  return *std::min_element(data_.begin(), data_.end());
+}

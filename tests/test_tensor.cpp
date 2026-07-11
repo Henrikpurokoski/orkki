@@ -280,3 +280,47 @@ TEST_CASE("scalar compound divides") {
   CHECK(t(0, 0) == 0.5f);
   CHECK(t(0, 1) == 1);
 }
+
+TEST_CASE("sum") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.sum();
+
+  CHECK(r == 3);
+}
+
+TEST_CASE("mean") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.mean();
+
+  CHECK(r == 1.5);
+}
+
+TEST_CASE("max") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.max();
+
+  CHECK(r == 2);
+}
+
+TEST_CASE("min") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.min();
+
+  CHECK(r == 1);
+}

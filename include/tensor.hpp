@@ -77,6 +77,12 @@ class Tensor {
   Tensor& operator*=(const float scalar);
   Tensor& operator/=(const float scalar);
 
+  // reductions
+  float sum() const;
+  float mean() const;
+  float max() const;
+  float min() const;
+
  private:
   // basic constructor
   Tensor(const std::vector<std::size_t>& shape);
