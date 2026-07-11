@@ -77,3 +77,51 @@ Tensor Tensor::operator/(const Tensor& other) const {
 
   return result;
 };
+
+Tensor Tensor::operator+(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] + scalar;
+  }
+
+  return result;
+}
+
+Tensor Tensor::operator-(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] - scalar;
+  }
+
+  return result;
+}
+
+Tensor Tensor::operator*(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] * scalar;
+  }
+
+  return result;
+}
+
+Tensor Tensor::operator/(const float scalar) const {
+  Tensor result(shape_);
+
+  std::size_t size = data_.size();
+
+  for (std::size_t i = 0; i < size; ++i) {
+    result.data_[i] = data_[i] / scalar;
+  }
+
+  return result;
+}

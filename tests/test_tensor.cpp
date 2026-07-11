@@ -37,7 +37,7 @@ TEST_CASE("indexing") {
   CHECK(t(1, 1) == 3);
 }
 
-TEST_CASE("plus") {
+TEST_CASE("elementwise_plus") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
@@ -58,7 +58,7 @@ TEST_CASE("plus") {
   CHECK(t_c(1, 1) == 4);
 }
 
-TEST_CASE("minus") {
+TEST_CASE("elementwise_minus") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
@@ -79,7 +79,7 @@ TEST_CASE("minus") {
   CHECK(t_c(1, 1) == -1);
 }
 
-TEST_CASE("multiplies") {
+TEST_CASE("elementwise_multiplies") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
@@ -100,7 +100,7 @@ TEST_CASE("multiplies") {
   CHECK(t_c(1, 1) == 6);
 }
 
-TEST_CASE("divides") {
+TEST_CASE("elementwise_divides") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
@@ -119,4 +119,52 @@ TEST_CASE("divides") {
   CHECK(t_c(0, 1) == 4);
   CHECK(t_c(1, 0) == 6);
   CHECK(t_c(1, 1) == 12);
+}
+
+TEST_CASE("scalar_plus") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  Tensor r = t + 2;
+
+  CHECK(r(0, 0) == 3);
+  CHECK(r(0, 1) == 4);
+}
+
+TEST_CASE("scalar_minus") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  Tensor r = t - 2;
+
+  CHECK(r(0, 0) == -1);
+  CHECK(r(0, 1) == 0);
+}
+
+TEST_CASE("scalar_multiplies") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  Tensor r = t * 2;
+
+  CHECK(r(0, 0) == 2);
+  CHECK(r(0, 1) == 4);
+}
+
+TEST_CASE("scalar_divides") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  Tensor r = t / 2;
+
+  CHECK(r(0, 0) == 0.5f);
+  CHECK(r(0, 1) == 1);
 }

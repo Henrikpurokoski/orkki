@@ -59,6 +59,12 @@ class Tensor {
   Tensor operator*(const Tensor& other) const;
   Tensor operator/(const Tensor& other) const;
 
+  // scalar arithmetic
+  Tensor operator+(const float scalar) const;
+  Tensor operator-(const float scalar) const;
+  Tensor operator*(const float scalar) const;
+  Tensor operator/(const float scalar) const;
+
  private:
   // basic constructor
   Tensor(const std::vector<std::size_t>& shape);
