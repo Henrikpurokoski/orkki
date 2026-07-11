@@ -41,78 +41,82 @@ TEST_CASE("plus") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
-  float value = 1.0f;
+  float value_a = 1.0f;
+  float value_b = 0.0f;
   for (std::size_t i = 0; i < 2; i++) {
     for (std::size_t j = 0; j < 2; j++) {
-      t_a(i, j) = value;
-      t_b(i, j) = value;
+      t_a(i, j) = value_a;
+      t_b(i, j) = value_b++;
     }
   }
 
   Tensor t_c = t_a + t_b;
 
-  CHECK(t_c(0, 0) == 2);
+  CHECK(t_c(0, 0) == 1);
   CHECK(t_c(0, 1) == 2);
-  CHECK(t_c(1, 0) == 2);
-  CHECK(t_c(1, 1) == 2);
+  CHECK(t_c(1, 0) == 3);
+  CHECK(t_c(1, 1) == 4);
 }
 
 TEST_CASE("minus") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
-  float value = 2.0f;
+  float value_a = 2.0f;
+  float value_b = 0.0f;
   for (std::size_t i = 0; i < 2; i++) {
     for (std::size_t j = 0; j < 2; j++) {
-      t_a(i, j) = value;
-      t_b(i, j) = value - 1;
+      t_a(i, j) = value_a;
+      t_b(i, j) = value_b++;
     }
   }
 
   Tensor t_c = t_a - t_b;
 
-  CHECK(t_c(0, 0) == 1);
+  CHECK(t_c(0, 0) == 2);
   CHECK(t_c(0, 1) == 1);
-  CHECK(t_c(1, 0) == 1);
-  CHECK(t_c(1, 1) == 1);
+  CHECK(t_c(1, 0) == 0);
+  CHECK(t_c(1, 1) == -1);
 }
 
 TEST_CASE("multiplies") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
-  float value = 2.0f;
+  float value_a = 2.0f;
+  float value_b = 0.0f;
   for (std::size_t i = 0; i < 2; i++) {
     for (std::size_t j = 0; j < 2; j++) {
-      t_a(i, j) = value;
-      t_b(i, j) = value;
+      t_a(i, j) = value_a;
+      t_b(i, j) = value_b++;
     }
   }
 
   Tensor t_c = t_a * t_b;
 
-  CHECK(t_c(0, 0) == 4);
-  CHECK(t_c(0, 1) == 4);
+  CHECK(t_c(0, 0) == 0);
+  CHECK(t_c(0, 1) == 2);
   CHECK(t_c(1, 0) == 4);
-  CHECK(t_c(1, 1) == 4);
+  CHECK(t_c(1, 1) == 6);
 }
 
 TEST_CASE("divides") {
   Tensor t_a = Tensor::Zeros({2, 2});
   Tensor t_b = Tensor::Zeros({2, 2});
 
-  float value = 2.0f;
+  float value_a = 12.0f;
+  float value_b = 4.0f;
   for (std::size_t i = 0; i < 2; i++) {
     for (std::size_t j = 0; j < 2; j++) {
-      t_a(i, j) = value;
-      t_b(i, j) = value;
+      t_a(i, j) = value_a;
+      t_b(i, j) = value_b--;
     }
   }
 
   Tensor t_c = t_a / t_b;
 
-  CHECK(t_c(0, 0) == 1);
-  CHECK(t_c(0, 1) == 1);
-  CHECK(t_c(1, 0) == 1);
-  CHECK(t_c(1, 1) == 1);
+  CHECK(t_c(0, 0) == 3);
+  CHECK(t_c(0, 1) == 4);
+  CHECK(t_c(1, 0) == 6);
+  CHECK(t_c(1, 1) == 12);
 }
