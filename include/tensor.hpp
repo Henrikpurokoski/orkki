@@ -22,7 +22,7 @@ class Tensor {
   const std::vector<std::size_t>& shape() const { return shape_; }
   const std::vector<std::size_t>& strides() const { return strides_; }
 
-  // get data from index
+  // indexing
   template <typename... Args>
   float& operator()(Args... args) {
     static_assert((std::is_integral_v<Args> && ...));
@@ -64,6 +64,18 @@ class Tensor {
   Tensor operator-(const float scalar) const;
   Tensor operator*(const float scalar) const;
   Tensor operator/(const float scalar) const;
+
+  // elementwise compound arithmetic
+  Tensor& operator+=(const Tensor& other);
+  Tensor& operator-=(const Tensor& other);
+  Tensor& operator*=(const Tensor& other);
+  Tensor& operator/=(const Tensor& other);
+
+  // scalar compound arithmetic
+  Tensor& operator+=(const float scalar);
+  Tensor& operator-=(const float scalar);
+  Tensor& operator*=(const float scalar);
+  Tensor& operator/=(const float scalar);
 
  private:
   // basic constructor
