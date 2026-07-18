@@ -21,4 +21,9 @@ add_executable(tests
     src/tensor.cpp
 )
 
+add_executable(matmul_time
+    matmul_time.cpp
+    src/tensor.cpp
+)
+
 target_link_libraries(tests PRIVATE doctest::doctest)
