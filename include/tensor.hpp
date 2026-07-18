@@ -83,6 +83,9 @@ class Tensor {
   float max() const;
   float min() const;
 
+  // matrix multiplication
+  Tensor matmul(const Tensor& other) const;
+
  private:
   // basic constructor
   Tensor(const std::vector<std::size_t>& shape);

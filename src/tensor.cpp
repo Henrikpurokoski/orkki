@@ -244,3 +244,32 @@ float Tensor::max() const {
 float Tensor::min() const {
   return *std::min_element(data_.begin(), data_.end());
 }
+
+// matrix multiplication
+Tensor Tensor::matmul(const Tensor& other) const {
+  assert(shape_.size() == 2);
+  assert(other.shape().size() == 2);
+
+  std::size_t t_rows = shape_[0];
+  std::size_t t_columns = shape_[1];
+
+  std::size_t o_rows = other.shape()[0];
+  std::size_t o_columns = other.shape()[1];
+
+  assert(t_columns == o_rows);
+
+  std::vector<std::size_t> res_shape = {t_rows, o_columns};
+
+  Tensor result(res_shape);
+
+  for (std::size_t i = 0; i < o_columns; ++i) {
+    for (std::size_t j = 0; j < t_rows; ++j) {
+      float cur = 0.0f;
+      for (std::size_t k = 0; k < t_columns; ++k) {
+        cur += (*this)(j, k) * other(k, i);
+      }
+      result(j, i) = cur;
+    }
+  }
+  return result;
+}
