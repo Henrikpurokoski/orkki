@@ -280,3 +280,71 @@ TEST_CASE("scalar compound divides") {
   CHECK(t(0, 0) == 0.5f);
   CHECK(t(0, 1) == 1);
 }
+
+TEST_CASE("sum") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.sum();
+
+  CHECK(r == 3);
+}
+
+TEST_CASE("mean") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.mean();
+
+  CHECK(r == 1.5);
+}
+
+TEST_CASE("max") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.max();
+
+  CHECK(r == 2);
+}
+
+TEST_CASE("min") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+
+  float r = t.min();
+
+  CHECK(r == 1);
+}
+
+TEST_CASE("matmul1") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 2});
+
+  t_a(0, 0) = 1;
+  t_a(0, 1) = 2;
+  t_a(1, 0) = 3;
+  t_a(1, 1) = 4;
+
+  t_b(0, 0) = 4;
+  t_b(0, 1) = 3;
+  t_b(1, 0) = 2;
+  t_b(1, 1) = 1;
+
+  Tensor res = t_a.matmul(t_b);
+
+  CHECK(res.shape() == std::vector<std::size_t>{2, 2});
+
+  CHECK(res(0, 0) == 8);
+  CHECK(res(0, 1) == 5);
+  CHECK(res(1, 0) == 20);
+  CHECK(res(1, 1) == 13);
+}
