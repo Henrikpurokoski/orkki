@@ -442,3 +442,40 @@ TEST_CASE("abs") {
   CHECK(res(0, 0) == 4);
   CHECK(res(0, 1) == 4);
 }
+
+TEST_CASE("broadcast1") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 1});
+
+  t_a(0, 0) = 1;
+  t_a(0, 1) = 2;
+  t_a(1, 0) = 3;
+  t_a(1, 1) = 4;
+
+  t_b(0, 0) = 5;
+  t_b(1, 0) = 6;
+
+  Tensor res = t_a + t_b;
+
+  CHECK(res.shape() == std::vector<std::size_t>{2, 2});
+
+  CHECK(res(0, 0) == 6);
+  CHECK(res(0, 1) == 7);
+  CHECK(res(1, 0) == 9);
+  CHECK(res(1, 1) == 10);
+}
+
+TEST_CASE("broadcast2") {
+  Tensor t_a = Tensor::Zeros({2, 2, 2});
+  Tensor t_b = Tensor::Zeros({1, 2});
+
+  t_b(0, 0) = 1;
+  t_b(0, 1) = 2;
+
+  Tensor res = t_a + t_b;
+
+  CHECK(res.shape() == std::vector<std::size_t>{2, 2, 2});
+
+  CHECK(res(0, 0, 0) == 1);
+  CHECK(res(0, 0, 1) == 2);
+}
