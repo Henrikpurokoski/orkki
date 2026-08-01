@@ -86,6 +86,17 @@ class Tensor {
   // matrix multiplication
   Tensor matmul(const Tensor& other) const;
 
+  // transpose
+  Tensor transpose() const;
+
+  // activations
+  Tensor relu() const;
+  Tensor sigmoid() const;
+  Tensor exp() const;
+  Tensor log() const;
+  Tensor sqrt() const;
+  Tensor abs() const;
+
  private:
   // basic constructor
   Tensor(const std::vector<std::size_t>& shape);
@@ -95,4 +106,71 @@ class Tensor {
   std::vector<std::size_t> shape_;
   // how many slots have to be skipped for each dimension
   std::vector<std::size_t> strides_;
+
+  // apply unary operator
+  template <typename unary>
+  Tensor apply(unary op) const {
+    Tensor result(shape_);
+
+    for (std::size_t i = 0; i < data_.size(); ++i) {
+      result.data_[i] = op(data_[i]);
+    }
+    return result;
+  }
+
+  // broadcast
+  const std::tuple<std::vector<std::size_t>, std::vector<std::size_t>,
+                   std::vector<std::size_t>>
+  broadcast_shape(const std::vector<std::size_t>& other_shape) const;
+  static const std::vector<std::size_t> broadcast_strides(
+      const std::vector<std::size_t> padded_shape);
+
+  template <typename binary>
+  Tensor broadcast_apply(binary op, const Tensor& other) const {
+    auto [result_shape, t_shape, o_shape] =
+        (*this).broadcast_shape(other.shape_);
+
+    Tensor result(result_shape);
+
+    std::vector<std::size_t> strides_t = Tensor::broadcast_strides(t_shape);
+    std::vector<std::size_t> strides_o = Tensor::broadcast_strides(o_shape);
+
+    for (std::size_t i = 0; i < result.data_.size(); ++i) {
+      std::size_t iter_t = 0;
+      std::size_t iter_o = 0;
+      std::size_t remaining = i;
+      for (std::size_t j = 0; j < result.shape_.size(); ++j) {
+        std::size_t cur = remaining / result.strides_[j];
+        remaining -= cur * result.strides_[j];
+        iter_t += cur * strides_t[j];
+        iter_o += cur * strides_o[j];
+      }
+      result.data_[i] = op(data_[iter_t], other.data_[iter_o]);
+    }
+    return result;
+  }
+
+  template <typename binary>
+  Tensor& broadcast_apply(binary op, const Tensor& other) {
+    auto [result_shape, t_shape, o_shape] =
+        (*this).broadcast_shape(other.shape_);
+    assert(result_shape == shape_);
+
+    std::vector<std::size_t> strides_t = Tensor::broadcast_strides(t_shape);
+    std::vector<std::size_t> strides_o = Tensor::broadcast_strides(o_shape);
+
+    for (std::size_t i = 0; i < data_.size(); ++i) {
+      std::size_t iter_t = 0;
+      std::size_t iter_o = 0;
+      std::size_t remaining = i;
+      for (std::size_t j = 0; j < shape_.size(); ++j) {
+        std::size_t cur = remaining / strides_[j];
+        remaining -= cur * strides_[j];
+        iter_t += cur * strides_t[j];
+        iter_o += cur * strides_o[j];
+      }
+      data_[i] = op(data_[iter_t], other.data_[iter_o]);
+    }
+    return *this;
+  }
 };

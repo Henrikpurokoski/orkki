@@ -348,3 +348,134 @@ TEST_CASE("matmul1") {
   CHECK(res(1, 0) == 20);
   CHECK(res(1, 1) == 13);
 }
+
+TEST_CASE("transpose") {
+  Tensor t = Tensor::Zeros({2, 3});
+
+  t(0, 0) = 1;
+  t(0, 1) = 2;
+  t(0, 2) = 3;
+  t(1, 0) = 4;
+  t(1, 1) = 5;
+  t(1, 2) = 6;
+
+  Tensor res = t.transpose();
+
+  CHECK(res.shape() == std::vector<std::size_t>{3, 2});
+
+  CHECK(res(0, 0) == 1);
+  CHECK(res(1, 0) == 2);
+  CHECK(res(2, 0) == 3);
+  CHECK(res(0, 1) == 4);
+  CHECK(res(1, 1) == 5);
+  CHECK(res(2, 1) == 6);
+}
+
+TEST_CASE("relu") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = -1;
+
+  Tensor res = t.relu();
+
+  CHECK(res(0, 0) == 1);
+  CHECK(res(0, 1) == 0);
+}
+
+TEST_CASE("sigmoid") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 0;
+  t(0, 1) = 1;
+
+  Tensor res = t.sigmoid();
+
+  CHECK(res(0, 0) == 0.5);
+  CHECK(res(0, 1) < 1);
+}
+
+TEST_CASE("exp") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 0;
+  t(0, 1) = 1;
+
+  Tensor res = t.exp();
+
+  CHECK(res(0, 0) == 1);
+  CHECK(res(0, 1) > 1);
+}
+
+TEST_CASE("log") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 1;
+  t(0, 1) = 10;
+
+  Tensor res = t.log();
+
+  CHECK(res(0, 0) == 0);
+  CHECK(res(0, 1) < 10);
+}
+
+TEST_CASE("sqrt") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 4;
+  t(0, 1) = 16;
+
+  Tensor res = t.sqrt();
+
+  CHECK(res(0, 0) == 2);
+  CHECK(res(0, 1) == 4);
+}
+
+TEST_CASE("abs") {
+  Tensor t = Tensor::Zeros({1, 2});
+
+  t(0, 0) = 4;
+  t(0, 1) = -4;
+
+  Tensor res = t.abs();
+
+  CHECK(res(0, 0) == 4);
+  CHECK(res(0, 1) == 4);
+}
+
+TEST_CASE("broadcast1") {
+  Tensor t_a = Tensor::Zeros({2, 2});
+  Tensor t_b = Tensor::Zeros({2, 1});
+
+  t_a(0, 0) = 1;
+  t_a(0, 1) = 2;
+  t_a(1, 0) = 3;
+  t_a(1, 1) = 4;
+
+  t_b(0, 0) = 5;
+  t_b(1, 0) = 6;
+
+  Tensor res = t_a + t_b;
+
+  CHECK(res.shape() == std::vector<std::size_t>{2, 2});
+
+  CHECK(res(0, 0) == 6);
+  CHECK(res(0, 1) == 7);
+  CHECK(res(1, 0) == 9);
+  CHECK(res(1, 1) == 10);
+}
+
+TEST_CASE("broadcast2") {
+  Tensor t_a = Tensor::Zeros({2, 2, 2});
+  Tensor t_b = Tensor::Zeros({1, 2});
+
+  t_b(0, 0) = 1;
+  t_b(0, 1) = 2;
+
+  Tensor res = t_a + t_b;
+
+  CHECK(res.shape() == std::vector<std::size_t>{2, 2, 2});
+
+  CHECK(res(0, 0, 0) == 1);
+  CHECK(res(0, 0, 1) == 2);
+}
