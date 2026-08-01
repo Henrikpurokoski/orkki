@@ -3,3 +3,4 @@ out/
 bin/
 .vscode/
 .DS_Store
+.zshrc

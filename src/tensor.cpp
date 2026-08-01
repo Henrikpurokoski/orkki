@@ -1,7 +1,5 @@
 #include "../include/tensor.hpp"
 
-#include <iostream>
-
 Tensor::Tensor(const std::vector<std::size_t>& shape) : shape_(shape) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
@@ -286,4 +284,44 @@ const std::vector<std::size_t> Tensor::broadcast_strides(
     current_stride *= padded_shape[i];
   }
   return result;
+}
+
+const std::string Tensor::show() const {
+  std::stringstream o;
+  if (shape_.size() == 0) {
+    o << "Cannot show empty tensor!\n";
+  } else if (shape_.size() > 2 ||
+             *std::max_element(shape_.begin(), shape_.end()) > 30) {
+    o << "Tensor too big to show!\n";
+  } else if (shape_.size() == 2) {
+    std::size_t rows = shape_[0];
+    std::size_t cols = shape_[1];
+    for (std::size_t i = 0; i < rows; ++i) {
+      o << "[";
+      bool first = true;
+      for (std::size_t j = 0; j < cols; ++j) {
+        if (!first) {
+          o << ", ";
+        }
+        float data = std::round((*this)(i, j) * 100.0f) / 100.0f;
+        o << data;
+        first = false;
+      }
+      o << "]\n";
+    }
+  } else if (shape_.size() == 1) {
+    o << "[";
+    bool first = true;
+    for (std::size_t i = 0; i < shape_[0]; ++i) {
+      if (!first) {
+        o << ", ";
+      }
+      float data = std::round((*this)(i) * 100.0f) / 100.0f;
+      o << data;
+      first = false;
+    }
+    o << "]\n";
+  }
+  std::string str = o.str();
+  return str;
 }

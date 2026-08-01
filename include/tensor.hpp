@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <numeric>
 #include <random>
+#include <sstream>
 #include <type_traits>
 #include <vector>
 
@@ -89,13 +92,16 @@ class Tensor {
   // transpose
   Tensor transpose() const;
 
-  // activations
+  // unary activations
   Tensor relu() const;
   Tensor sigmoid() const;
   Tensor exp() const;
   Tensor log() const;
   Tensor sqrt() const;
   Tensor abs() const;
+
+  // string
+  const std::string show() const;
 
  private:
   // basic constructor
