@@ -273,3 +273,45 @@ Tensor Tensor::matmul(const Tensor& other) const {
   }
   return result;
 }
+
+Tensor Tensor::transpose() const {
+  assert(shape_.size() == 2);
+
+  std::size_t rows = shape_[0];
+  std::size_t cols = shape_[1];
+
+  std::vector<std::size_t> res_shape = {cols, rows};
+
+  Tensor result(res_shape);
+
+  for (std::size_t i = 0; i < rows; ++i) {
+    for (std::size_t j = 0; j < cols; ++j) {
+      result(j, i) = (*this)(i, j);
+    }
+  }
+  return result;
+}
+
+Tensor Tensor::relu() const {
+  return apply([](float x) { return std::max(0.0f, x); });
+}
+
+Tensor Tensor::sigmoid() const {
+  return apply([](float x) { return 1.0f / (1.0f + std::exp(-x)); });
+}
+
+Tensor Tensor::exp() const {
+  return apply([](float x) { return std::exp(x); });
+}
+
+Tensor Tensor::log() const {
+  return apply([](float x) { return std::log(x); });
+}
+
+Tensor Tensor::sqrt() const {
+  return apply([](float x) { return std::sqrt(x); });
+}
+
+Tensor Tensor::abs() const {
+  return apply([](float x) { return std::abs(x); });
+}

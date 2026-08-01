@@ -86,6 +86,17 @@ class Tensor {
   // matrix multiplication
   Tensor matmul(const Tensor& other) const;
 
+  // transpose
+  Tensor transpose() const;
+
+  // activations
+  Tensor relu() const;
+  Tensor sigmoid() const;
+  Tensor exp() const;
+  Tensor log() const;
+  Tensor sqrt() const;
+  Tensor abs() const;
+
  private:
   // basic constructor
   Tensor(const std::vector<std::size_t>& shape);
@@ -95,4 +106,15 @@ class Tensor {
   std::vector<std::size_t> shape_;
   // how many slots have to be skipped for each dimension
   std::vector<std::size_t> strides_;
+
+  // apply unary operator
+  template <typename unary>
+  Tensor apply(unary op) const {
+    Tensor result(shape_);
+
+    for (std::size_t i = 0; i < data_.size(); ++i) {
+      result.data_[i] = op(data_[i]);
+    }
+    return result;
+  }
 };
