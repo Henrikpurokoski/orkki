@@ -1,12 +1,12 @@
 #include "../include/tensor.hpp"
 
-Tensor::Tensor(const std::vector<std::size_t>& shape) : shape_(shape) {
+TensorImpl::TensorImpl(const std::vector<std::size_t>& shape) : shape_(shape) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
                       std::multiplies<std::size_t>());
   const std::size_t dims = static_cast<std::size_t>(shape.size());
 
-  data_.resize(size);
+  storage_ = std::make_shared<Storage>(size);
   strides_.resize(dims);
 
   std::size_t current_stride = 1;
@@ -36,150 +36,81 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
 
 // elementwise arithmetic
 Tensor Tensor::operator+(const Tensor& other) const {
-  return broadcast_apply([](float x, float y) { return x + y; }, other);
+  return apply_binary([](float x, float y) { return x + y; }, other);
 };
 
 Tensor Tensor::operator-(const Tensor& other) const {
-  return broadcast_apply([](float x, float y) { return x - y; }, other);
+  return apply_binary([](float x, float y) { return x - y; }, other);
 };
 
 Tensor Tensor::operator*(const Tensor& other) const {
-  return broadcast_apply([](float x, float y) { return x * y; }, other);
+  return apply_binary([](float x, float y) { return x * y; }, other);
 };
 
 Tensor Tensor::operator/(const Tensor& other) const {
-  return broadcast_apply([](float x, float y) { return x / y; }, other);
+  return apply_binary([](float x, float y) { return x / y; }, other);
 };
 
 // scalar arithmetic
 Tensor Tensor::operator+(const float scalar) const {
-  Tensor result(shape_);
-
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    result.data_[i] = data_[i] + scalar;
-  }
-
-  return result;
+  return apply_unary([scalar](float x) { return x + scalar; });
 }
 
 Tensor Tensor::operator-(const float scalar) const {
-  Tensor result(shape_);
-
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    result.data_[i] = data_[i] - scalar;
-  }
-
-  return result;
+  return apply_unary([scalar](float x) { return x - scalar; });
 }
 
 Tensor Tensor::operator*(const float scalar) const {
-  Tensor result(shape_);
-
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    result.data_[i] = data_[i] * scalar;
-  }
-
-  return result;
+  return apply_unary([scalar](float x) { return x * scalar; });
 }
 
 Tensor Tensor::operator/(const float scalar) const {
-  Tensor result(shape_);
-
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    result.data_[i] = data_[i] / scalar;
-  }
-
-  return result;
-}
-
-// elementwise compound arithmetic
-Tensor& Tensor::operator+=(const Tensor& other) {
-  return broadcast_apply([](float x, float y) { return x + y; }, other);
-}
-
-Tensor& Tensor::operator-=(const Tensor& other) {
-  return broadcast_apply([](float x, float y) { return x - y; }, other);
-}
-
-Tensor& Tensor::operator*=(const Tensor& other) {
-  return broadcast_apply([](float x, float y) { return x * y; }, other);
-}
-
-Tensor& Tensor::operator/=(const Tensor& other) {
-  return broadcast_apply([](float x, float y) { return x / y; }, other);
-}
-
-// scalar compound arithmetic
-Tensor& Tensor::operator+=(const float scalar) {
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    data_[i] += scalar;
-  }
-
-  return *this;
-}
-
-Tensor& Tensor::operator-=(const float scalar) {
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    data_[i] -= scalar;
-  }
-
-  return *this;
-}
-
-Tensor& Tensor::operator*=(const float scalar) {
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    data_[i] *= scalar;
-  }
-
-  return *this;
-}
-
-Tensor& Tensor::operator/=(const float scalar) {
-  std::size_t size = data_.size();
-
-  for (std::size_t i = 0; i < size; ++i) {
-    data_[i] /= scalar;
-  }
-
-  return *this;
+  return apply_unary([scalar](float x) { return x / scalar; });
 }
 
 // reductions
-float Tensor::sum() const {
-  return std::accumulate(data_.begin(), data_.end(), 0.0f);
+float Tensor::sum() const { return apply_accumulate(tensor_ops::SumReducer{}); }
+
+float Tensor::mean() const {
+  return apply_accumulate(tensor_ops::MeanReducer{});
 }
 
-float Tensor::mean() const { return sum() / static_cast<float>(data_.size()); }
+float Tensor::max() const { return apply_accumulate(tensor_ops::MaxReducer{}); }
 
-float Tensor::max() const {
-  return *std::max_element(data_.begin(), data_.end());
+float Tensor::min() const { return apply_accumulate(tensor_ops::MinReducer{}); }
+
+Tensor Tensor::relu() const {
+  return apply_unary([](float x) { return std::max(0.0f, x); });
 }
 
-float Tensor::min() const {
-  return *std::min_element(data_.begin(), data_.end());
+Tensor Tensor::sigmoid() const {
+  return apply_unary([](float x) { return 1.0f / (1.0f + std::exp(-x)); });
+}
+
+Tensor Tensor::exp() const {
+  return apply_unary([](float x) { return std::exp(x); });
+}
+
+Tensor Tensor::log() const {
+  return apply_unary([](float x) { return std::log(x); });
+}
+
+Tensor Tensor::sqrt() const {
+  return apply_unary([](float x) { return std::sqrt(x); });
+}
+
+Tensor Tensor::abs() const {
+  return apply_unary([](float x) { return std::abs(x); });
 }
 
 // matrix multiplication
 Tensor Tensor::matmul(const Tensor& other) const {
-  assert(shape_.size() == 2);
+  auto shape = impl_->shape_;
+  assert(shape.size() == 2);
   assert(other.shape().size() == 2);
 
-  std::size_t t_rows = shape_[0];
-  std::size_t t_columns = shape_[1];
+  std::size_t t_rows = shape[0];
+  std::size_t t_columns = shape[1];
 
   std::size_t o_rows = other.shape()[0];
   std::size_t o_columns = other.shape()[1];
@@ -203,10 +134,11 @@ Tensor Tensor::matmul(const Tensor& other) const {
 }
 
 Tensor Tensor::transpose() const {
-  assert(shape_.size() == 2);
+  auto shape = impl_->shape_;
+  assert(shape.size() == 2);
 
-  std::size_t rows = shape_[0];
-  std::size_t cols = shape_[1];
+  std::size_t rows = shape[0];
+  std::size_t cols = shape[1];
 
   std::vector<std::size_t> res_shape = {cols, rows};
 
@@ -220,47 +152,23 @@ Tensor Tensor::transpose() const {
   return result;
 }
 
-Tensor Tensor::relu() const {
-  return apply([](float x) { return std::max(0.0f, x); });
-}
-
-Tensor Tensor::sigmoid() const {
-  return apply([](float x) { return 1.0f / (1.0f + std::exp(-x)); });
-}
-
-Tensor Tensor::exp() const {
-  return apply([](float x) { return std::exp(x); });
-}
-
-Tensor Tensor::log() const {
-  return apply([](float x) { return std::log(x); });
-}
-
-Tensor Tensor::sqrt() const {
-  return apply([](float x) { return std::sqrt(x); });
-}
-
-Tensor Tensor::abs() const {
-  return apply([](float x) { return std::abs(x); });
-}
-
-const std::tuple<std::vector<std::size_t>, std::vector<std::size_t>,
-                 std::vector<std::size_t>>
-Tensor::broadcast_shape(const std::vector<std::size_t>& other_shape) const {
+std::vector<std::size_t> Tensor::broadcast_shape(
+    const std::vector<std::size_t>& other_shape) const {
+  auto shape = impl_->shape_;
   const auto& longer =
-      (shape_.size() >= other_shape.size()) ? shape_ : other_shape;
+      (shape.size() >= other_shape.size()) ? shape : other_shape;
   std::vector<std::size_t> result(longer.size(), 1);
   std::vector<std::size_t> padded_t = result;
   std::vector<std::size_t> padded_o = result;
 
   auto t_pos = std::max(0, (static_cast<int>(other_shape.size()) -
-                            static_cast<int>(shape_.size())));
-  auto o_pos = std::max(0, (static_cast<int>(shape_.size()) -
+                            static_cast<int>(shape.size())));
+  auto o_pos = std::max(0, (static_cast<int>(shape.size()) -
                             static_cast<int>(other_shape.size())));
 
   for (std::size_t i = 0; i < longer.size(); ++i) {
     if (i >= t_pos) {
-      padded_t[i] = shape_[(i - t_pos)];
+      padded_t[i] = shape[(i - t_pos)];
     }
     if (i >= o_pos) {
       padded_o[i] = other_shape[(i - o_pos)];
@@ -271,31 +179,38 @@ Tensor::broadcast_shape(const std::vector<std::size_t>& other_shape) const {
     result[i] = std::max(padded_t[i], padded_o[i]);
   }
 
-  return std::make_tuple(result, padded_t, padded_o);
+  return result;
 }
 
 const std::vector<std::size_t> Tensor::broadcast_strides(
-    const std::vector<std::size_t> padded_shape) {
-  std::vector<std::size_t> result = padded_shape;
+    const std::vector<std::size_t>& result_shape,
+    const std::vector<std::size_t>& shape,
+    const std::vector<std::size_t>& strides) {
+  std::vector<std::size_t> result(result_shape.size());
+  std::size_t padded_dims = (result_shape.size() - shape.size());
 
-  std::size_t current_stride = 1;
-  for (std::size_t i = padded_shape.size(); i-- > 0;) {
-    result[i] = (padded_shape[i] == 1) ? 0 : current_stride;
-    current_stride *= padded_shape[i];
+  for (std::size_t i = 0; i < result.size(); ++i) {
+    if (i >= padded_dims) {
+      std::size_t og_i = i - padded_dims;
+
+      result[i] = (shape[og_i] == 1) ? 0 : strides[og_i];
+    } else
+      result[i] = 0;
   }
   return result;
 }
 
-const std::string Tensor::show() const {
+std::string Tensor::show() const {
+  auto shape = impl_->shape_;
   std::stringstream o;
-  if (shape_.size() == 0) {
+  if (shape.size() == 0) {
     o << "Cannot show empty tensor!\n";
-  } else if (shape_.size() > 2 ||
-             *std::max_element(shape_.begin(), shape_.end()) > 30) {
+  } else if (shape.size() > 2 ||
+             *std::max_element(shape.begin(), shape.end()) > 30) {
     o << "Tensor too big to show!\n";
-  } else if (shape_.size() == 2) {
-    std::size_t rows = shape_[0];
-    std::size_t cols = shape_[1];
+  } else if (shape.size() == 2) {
+    std::size_t rows = shape[0];
+    std::size_t cols = shape[1];
     for (std::size_t i = 0; i < rows; ++i) {
       o << "[";
       bool first = true;
@@ -309,10 +224,10 @@ const std::string Tensor::show() const {
       }
       o << "]\n";
     }
-  } else if (shape_.size() == 1) {
+  } else if (shape.size() == 1) {
     o << "[";
     bool first = true;
-    for (std::size_t i = 0; i < shape_[0]; ++i) {
+    for (std::size_t i = 0; i < shape[0]; ++i) {
       if (!first) {
         o << ", ";
       }
