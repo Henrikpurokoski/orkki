@@ -14,7 +14,7 @@ struct MeanReducer {
 };
 
 struct MinReducer {
-  float init = false;
+  bool init = false;
   float min = 0;
   void update(float val) {
     if (init == false) {
@@ -27,7 +27,7 @@ struct MinReducer {
 };
 
 struct MaxReducer {
-  float init = false;
+  bool init = false;
   float max = 0;
   void update(float val) {
     if (init == false) {
