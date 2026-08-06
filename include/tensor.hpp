@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -20,7 +21,7 @@ struct Storage {
   std::vector<float> data_;
 
   // constructoror
-  explicit Storage(const std::size_t size) { data_.resize(size); }
+  explicit Storage(const std::size_t size, float value) : data_(size, value) {}
 };
 
 // tensor implementation: saves tensor metadata and points to a storage struct
@@ -28,11 +29,11 @@ struct TensorImpl {
   // pointer to storage
   std::shared_ptr<Storage> storage_;
   // shape of tensor
-  std::vector<std::size_t> shape_;
+  const std::vector<std::size_t> shape_;
   // how many slots have to be skipped for each dimension
-  std::vector<std::size_t> strides_;
+  const std::vector<std::size_t> strides_;
   // offset for later to use in slicing etc
-  std::size_t offset_ = 0;
+  const std::size_t offset_ = 0;
 
   // getters
   float* data() { return storage_->data_.data(); }
@@ -42,18 +43,25 @@ struct TensorImpl {
     return std::accumulate(shape_.begin(), shape_.end(), std::size_t{1},
                            std::multiplies<std::size_t>());
   }
-
   // constructor
-  TensorImpl(const std::vector<std::size_t>& shape);
+  explicit TensorImpl(const std::shared_ptr<Storage>& storage,
+                      const std::vector<std::size_t>& shape,
+                      const std::vector<std::size_t>& strides,
+                      const std::size_t& offset)
+      : storage_(storage), shape_(shape), strides_(strides), offset_(offset) {}
 };
 
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
 class Tensor {
  public:
-  // two constructors: initiate with zeros and with random
-  static Tensor Random(const std::vector<std::size_t>& shape, float low,
-                       float high);
+  // four constructors: initiate with zeros, ones, any value and with random
+  static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
+                       float high = 1.0f);
   static Tensor Zeros(const std::vector<std::size_t>& shape);
+
+  static Tensor Ones(const std::vector<std::size_t>& shape);
+
+  static Tensor Full(const std::vector<std::size_t>& shape, float value);
 
   // getters
   float* data() { return impl_->data(); }
@@ -106,16 +114,10 @@ class Tensor {
   Tensor operator/(const float scalar) const;
 
   // reductions
-  float sum() const;
-  float mean() const;
-  float max() const;
-  float min() const;
-
-  // matrix multiplication
-  Tensor matmul(const Tensor& other) const;
-
-  // transpose
-  Tensor transpose() const;
+  Tensor sum() const;
+  Tensor mean() const;
+  Tensor max() const;
+  Tensor min() const;
 
   // unary activations
   Tensor relu() const;
@@ -125,14 +127,24 @@ class Tensor {
   Tensor sqrt() const;
   Tensor abs() const;
 
+  // matrix multiplication
+  Tensor matmul(const Tensor& other) const;
+
+  // transpose
+  Tensor transpose() const;
+
+  // slice
+  Tensor slice(std::vector<std::pair<std::size_t, std::size_t>> slices) const;
+
   // string
-  std::string show() const;
+  std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
 
  private:
   // basic constructor
-  Tensor(const std::vector<std::size_t>& shape) {
-    impl_ = std::make_shared<TensorImpl>(shape);
-  }
+  explicit Tensor(const std::shared_ptr<TensorImpl> impl) : impl_(impl) {}
+
+  // overloaded constructor for ease of life
+  explicit Tensor(const std::vector<std::size_t>& shape, float value);
   // pointer to implementation
   std::shared_ptr<TensorImpl> impl_;
 
@@ -141,7 +153,7 @@ class Tensor {
   Tensor apply_unary(unary op) const {
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
-    Tensor result(shape);
+    Tensor result(shape, 0.0f);
 
     for (std::size_t i = 0; i < result.size(); ++i) {
       std::size_t iter_t = impl_->offset_;
@@ -155,8 +167,10 @@ class Tensor {
     }
     return result;
   }
+
+  // apply accumulation (usually returns 0d tensor)
   template <typename Reducer>
-  float apply_accumulate(Reducer reducer) const {
+  auto apply_accumulate(Reducer reducer) const {
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
 
@@ -193,7 +207,7 @@ class Tensor {
   Tensor apply_binary(binary op, const Tensor& other) const {
     auto result_shape = (*this).broadcast_shape(other.shape());
 
-    Tensor result(result_shape);
+    Tensor result(result_shape, 0.0f);
 
     std::vector<std::size_t> strides_t = Tensor::broadcast_strides(
         result_shape, (*this).shape(), (*this).strides());
@@ -214,4 +228,7 @@ class Tensor {
     }
     return result;
   }
+
+  void format_dim(std::stringstream& c, std::size_t cur_dim,
+                  std::vector<std::size_t>& cur_idx, std::size_t k) const;
 };

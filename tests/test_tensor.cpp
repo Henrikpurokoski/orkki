@@ -12,6 +12,27 @@ TEST_CASE("zeros constructor") {
     CHECK(t.data()[i] == 0.0f);
   }
 }
+
+TEST_CASE("ones constructor") {
+  Tensor t = Tensor::Ones({2, 4});
+  CHECK(t.size() == 8);
+  CHECK(t.shape() == std::vector<std::size_t>{2, 4});
+  CHECK(t.strides() == std::vector<std::size_t>{4, 1});
+  for (std::size_t i = 0; i < t.size(); i++) {
+    CHECK(t.data()[i] == 1.0f);
+  }
+}
+
+TEST_CASE("full constructor") {
+  Tensor t = Tensor::Full({2, 4}, 4.5f);
+  CHECK(t.size() == 8);
+  CHECK(t.shape() == std::vector<std::size_t>{2, 4});
+  CHECK(t.strides() == std::vector<std::size_t>{4, 1});
+  for (std::size_t i = 0; i < t.size(); i++) {
+    CHECK(t.data()[i] == 4.5f);
+  }
+}
+
 TEST_CASE("random constructor") {
   Tensor t = Tensor::Random({2, 4}, -1.0f, 2.0f);
   CHECK(t.size() == 8);
@@ -176,7 +197,7 @@ TEST_CASE("sum") {
   t(0, 0) = 1;
   t(0, 1) = 2;
 
-  float r = t.sum();
+  float r = t.sum()();
 
   CHECK(r == 3);
 }
@@ -187,7 +208,7 @@ TEST_CASE("mean") {
   t(0, 0) = 1;
   t(0, 1) = 2;
 
-  float r = t.mean();
+  float r = t.mean()();
 
   CHECK(r == 1.5);
 }
@@ -198,7 +219,7 @@ TEST_CASE("max") {
   t(0, 0) = 1;
   t(0, 1) = 2;
 
-  float r = t.max();
+  float r = t.max()();
 
   CHECK(r == 2);
 }
@@ -209,7 +230,7 @@ TEST_CASE("min") {
   t(0, 0) = 1;
   t(0, 1) = 2;
 
-  float r = t.min();
+  float r = t.min()();
 
   CHECK(r == 1);
 }
@@ -367,4 +388,18 @@ TEST_CASE("broadcast2") {
 
   CHECK(res(0, 0, 0) == 1);
   CHECK(res(0, 0, 1) == 2);
+}
+
+TEST_CASE("slice") {
+  Tensor t = Tensor::Ones({2, 2});
+
+  t(0, 0) = 2;
+  t(0, 1) = 2;
+
+  Tensor res = t.slice({{0, 1}, {0, 2}});
+
+  CHECK(res.shape() == std::vector<std::size_t>{1, 2});
+
+  CHECK(res(0, 0) == 2);
+  CHECK(res(0, 1) == 2);
 }
