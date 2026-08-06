@@ -167,18 +167,6 @@ class Tensor {
     }
     return result;
   }
-  template <typename Reducer>
-  float apply_accumulate(Reducer reducer) const {
-    auto shape = impl_->shape_;
-    auto strides = impl_->strides_;
-
-    std::vector<std::size_t> temp_strides(shape.size());
-    std::size_t current_stride = 1;
-    for (std::size_t ii = shape.size(); ii-- > 0;) {
-      temp_strides[ii] = current_stride;
-      current_stride *= shape[ii];
-    }
-
   // apply accumulation (usually returns 0d tensor)
   template <typename Reducer>
   auto apply_accumulate(Reducer reducer) const {
