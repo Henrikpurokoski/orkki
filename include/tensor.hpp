@@ -136,8 +136,14 @@ class Tensor {
   // slice
   Tensor slice(std::vector<std::pair<std::size_t, std::size_t>> slices) const;
 
+  // copy
+  Tensor copy() const;
+
   // string
   std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
+
+  // info
+  std::string info() const;
 
  private:
   // basic constructor

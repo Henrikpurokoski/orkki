@@ -155,10 +155,11 @@ Tensor Tensor::transpose() const {
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
+  auto offset = impl_->offset_;
 
   std::reverse(shape.begin(), shape.end());
   std::reverse(strides.begin(), strides.end());
-  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, 0);
+  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset);
   return Tensor(impl);
 }
 
@@ -186,6 +187,10 @@ Tensor Tensor::slice(
   return Tensor(impl);
 }
 
+Tensor Tensor::copy() const {
+  return apply_unary([](float x) { return x; });
+}
+
 std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
   std::stringstream c;
   c << std::fixed << std::setprecision(precision);
@@ -196,6 +201,31 @@ std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
     std::vector<std::size_t> cur_idx(shape.size(), 0);
     format_dim(c, 0, cur_idx, max_k);
   }
+  return c.str();
+}
+
+std::string Tensor::info() const {
+  auto shape = impl_->shape_;
+  auto strides = impl_->strides_;
+  auto offset = impl_->offset_;
+  auto storage = impl_->storage_;
+  std::stringstream c;
+  c << "Tensor with shape: (";
+  for (std::size_t i = 0; i < shape.size(); i++) {
+    c << shape[i];
+    if (i < shape.size() - 1) {
+      c << ", ";
+    }
+  }
+  c << "),\nstrides: (";
+  for (std::size_t i = 0; i < strides.size(); i++) {
+    c << strides[i];
+    if (i < strides.size() - 1) {
+      c << ", ";
+    }
+  }
+  c << "),\noffset: " << offset;
+  c << ",\npointing to storage at: " << storage << ".";
   return c.str();
 }
 
