@@ -34,6 +34,8 @@ struct TensorImpl {
   const std::vector<std::size_t> strides_;
   // offset for later to use in slicing etc
   const std::size_t offset_ = 0;
+  // requires grad flag
+  const bool requires_grad_;
 
   // getters
   float* data() { return storage_->data_.data(); }
@@ -47,8 +49,12 @@ struct TensorImpl {
   explicit TensorImpl(const std::shared_ptr<Storage>& storage,
                       const std::vector<std::size_t>& shape,
                       const std::vector<std::size_t>& strides,
-                      const std::size_t& offset)
-      : storage_(storage), shape_(shape), strides_(strides), offset_(offset) {}
+                      const std::size_t& offset, const bool& requires_grad)
+      : storage_(storage),
+        shape_(shape),
+        strides_(strides),
+        offset_(offset),
+        requires_grad_(requires_grad) {}
 };
 
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
@@ -56,12 +62,15 @@ class Tensor {
  public:
   // four constructors: initiate with zeros, ones, any value and with random
   static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
-                       float high = 1.0f);
-  static Tensor Zeros(const std::vector<std::size_t>& shape);
+                       float high = 1.0f, const bool& requires_grad = false);
+  static Tensor Zeros(const std::vector<std::size_t>& shape,
+                      const bool& requires_grad = false);
 
-  static Tensor Ones(const std::vector<std::size_t>& shape);
+  static Tensor Ones(const std::vector<std::size_t>& shape,
+                     const bool& requires_grad = false);
 
-  static Tensor Full(const std::vector<std::size_t>& shape, float value);
+  static Tensor Full(const std::vector<std::size_t>& shape, float value,
+                     const bool& requires_grad = false);
 
   // getters
   float* data() { return impl_->data(); }
@@ -69,6 +78,7 @@ class Tensor {
   std::size_t size() const { return impl_->size(); }
   const std::vector<std::size_t>& shape() const { return impl_->shape_; }
   const std::vector<std::size_t>& strides() const { return impl_->strides_; }
+  const bool& requires_grad() const { return impl_->requires_grad_; }
 
   // indexing
   template <typename... Args>
@@ -150,7 +160,8 @@ class Tensor {
   explicit Tensor(const std::shared_ptr<TensorImpl> impl) : impl_(impl) {}
 
   // overloaded constructor for ease of life
-  explicit Tensor(const std::vector<std::size_t>& shape, float value);
+  explicit Tensor(const std::vector<std::size_t>& shape, float value,
+                  const bool& requires_grad = false);
   // pointer to implementation
   std::shared_ptr<TensorImpl> impl_;
 
@@ -159,7 +170,9 @@ class Tensor {
   Tensor apply_unary(unary op) const {
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
-    Tensor result(shape, 0.0f);
+    const bool requires_grad = impl_->requires_grad_;
+
+    Tensor result(shape, 0.0f, requires_grad);
 
     for (std::size_t i = 0; i < result.size(); ++i) {
       std::size_t iter_t = impl_->offset_;
@@ -212,7 +225,9 @@ class Tensor {
   Tensor apply_binary(binary op, const Tensor& other) const {
     auto result_shape = (*this).broadcast_shape(other.shape());
 
-    Tensor result(result_shape, 0.0f);
+    const bool grad = (*this).requires_grad() || other.requires_grad();
+
+    Tensor result(result_shape, 0.0f, grad);
 
     std::vector<std::size_t> strides_t = Tensor::broadcast_strides(
         result_shape, (*this).shape(), (*this).strides());

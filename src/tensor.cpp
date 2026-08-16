@@ -1,6 +1,7 @@
 #include "../include/tensor.hpp"
 // constructor
-Tensor::Tensor(const std::vector<std::size_t>& shape, float value) {
+Tensor::Tensor(const std::vector<std::size_t>& shape, float value,
+               const bool& requires_grad) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
                       std::multiplies<std::size_t>());
@@ -14,30 +15,34 @@ Tensor::Tensor(const std::vector<std::size_t>& shape, float value) {
     strides[i] = current_stride;
     current_stride *= shape[i];
   }
-  impl_ = std::make_shared<TensorImpl>(storage, shape, strides, 0.0f);
+  impl_ = std::make_shared<TensorImpl>(storage, shape, strides, 0.0f,
+                                       requires_grad);
 }
 
 // public
-Tensor Tensor::Zeros(const std::vector<std::size_t>& shape) {
-  return Tensor(shape, 0.0f);
+Tensor Tensor::Zeros(const std::vector<std::size_t>& shape,
+                     const bool& requires_grad) {
+  return Tensor(shape, 0.0f, requires_grad);
 };
 
-Tensor Tensor::Ones(const std::vector<std::size_t>& shape) {
-  return Tensor(shape, 1.0f);
+Tensor Tensor::Ones(const std::vector<std::size_t>& shape,
+                    const bool& requires_grad) {
+  return Tensor(shape, 1.0f, requires_grad);
 };
 
-Tensor Tensor::Full(const std::vector<std::size_t>& shape, float value) {
-  return Tensor(shape, value);
+Tensor Tensor::Full(const std::vector<std::size_t>& shape, float value,
+                    const bool& requires_grad) {
+  return Tensor(shape, value, requires_grad);
 };
 
 Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
-                      float high) {
+                      float high, const bool& requires_grad) {
   static std::random_device rng_device;
   static std::mt19937 engine{rng_device()};
   std::uniform_real_distribution<float> dist{low, high};
 
   auto gen = [&]() { return dist(engine); };
-  Tensor vec(shape, 0.0f);
+  Tensor vec(shape, 0.0f, requires_grad);
   auto data_first = vec.data();
   auto data_len = vec.size();
   std::generate(data_first, data_first + data_len, gen);
@@ -80,19 +85,23 @@ Tensor Tensor::operator/(const float scalar) const {
 
 // reductions
 Tensor Tensor::sum() const {
-  return Tensor({}, apply_accumulate(tensor_ops::SumReducer{}));
+  const bool requires_grad = impl_->requires_grad_;
+  return Tensor({}, apply_accumulate(tensor_ops::SumReducer{}), requires_grad);
 }
 
 Tensor Tensor::mean() const {
-  return Tensor({}, apply_accumulate(tensor_ops::MeanReducer{}));
+  const bool requires_grad = impl_->requires_grad_;
+  return Tensor({}, apply_accumulate(tensor_ops::MeanReducer{}), requires_grad);
 }
 
 Tensor Tensor::max() const {
-  return Tensor({}, apply_accumulate(tensor_ops::MaxReducer{}));
+  const bool requires_grad = impl_->requires_grad_;
+  return Tensor({}, apply_accumulate(tensor_ops::MaxReducer{}), requires_grad);
 }
 
 Tensor Tensor::min() const {
-  return Tensor({}, apply_accumulate(tensor_ops::MinReducer{}));
+  const bool requires_grad = impl_->requires_grad_;
+  return Tensor({}, apply_accumulate(tensor_ops::MinReducer{}), requires_grad);
 }
 
 // unary ops
@@ -156,10 +165,12 @@ Tensor Tensor::transpose() const {
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
+  auto requires_grad = impl_->requires_grad_;
 
   std::reverse(shape.begin(), shape.end());
   std::reverse(strides.begin(), strides.end());
-  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset);
+  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
+                                           requires_grad);
   return Tensor(impl);
 }
 
@@ -170,6 +181,7 @@ Tensor Tensor::slice(
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
+  auto requires_grad = impl_->requires_grad_;
 
   assert(slices.size() == shape.size());
 
@@ -183,7 +195,8 @@ Tensor Tensor::slice(
     shape[i] = new_shape;
     offset += first * strides[i];
   }
-  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset);
+  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
+                                           requires_grad);
   return Tensor(impl);
 }
 
@@ -209,6 +222,7 @@ std::string Tensor::info() const {
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
   auto storage = impl_->storage_;
+  auto requires_grad = impl_->requires_grad_;
   std::stringstream c;
   c << "Tensor with shape: (";
   for (std::size_t i = 0; i < shape.size(); i++) {
@@ -225,6 +239,7 @@ std::string Tensor::info() const {
     }
   }
   c << "),\noffset: " << offset;
+  c << ",\n" << ((requires_grad) ? "using gradients" : "not using gradients");
   c << ",\npointing to storage at: " << storage << ".";
   return c.str();
 }
