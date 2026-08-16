@@ -85,21 +85,25 @@ Tensor Tensor::operator/(const float scalar) const {
 
 // reductions
 Tensor Tensor::sum() const {
+  assert(defined());
   const bool requires_grad = impl_->requires_grad_;
   return Tensor({}, apply_accumulate(tensor_ops::SumReducer{}), requires_grad);
 }
 
 Tensor Tensor::mean() const {
+  assert(defined());
   const bool requires_grad = impl_->requires_grad_;
   return Tensor({}, apply_accumulate(tensor_ops::MeanReducer{}), requires_grad);
 }
 
 Tensor Tensor::max() const {
+  assert(defined());
   const bool requires_grad = impl_->requires_grad_;
   return Tensor({}, apply_accumulate(tensor_ops::MaxReducer{}), requires_grad);
 }
 
 Tensor Tensor::min() const {
+  assert(defined());
   const bool requires_grad = impl_->requires_grad_;
   return Tensor({}, apply_accumulate(tensor_ops::MinReducer{}), requires_grad);
 }
@@ -131,6 +135,7 @@ Tensor Tensor::abs() const {
 
 // matrix multiplication
 Tensor Tensor::matmul(const Tensor& other) const {
+  assert(defined());
   auto shape = impl_->shape_;
   assert(shape.size() == 2);
   assert(other.shape().size() == 2);
@@ -161,6 +166,7 @@ Tensor Tensor::matmul(const Tensor& other) const {
 
 // transpose
 Tensor Tensor::transpose() const {
+  assert(defined());
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
@@ -177,6 +183,7 @@ Tensor Tensor::transpose() const {
 // slice
 Tensor Tensor::slice(
     std::vector<std::pair<std::size_t, std::size_t>> slices) const {
+  assert(defined());
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
@@ -205,6 +212,7 @@ Tensor Tensor::copy() const {
 }
 
 std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
+  assert(defined());
   std::stringstream c;
   c << std::fixed << std::setprecision(precision);
   auto shape = impl_->shape_;
@@ -218,6 +226,7 @@ std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
 }
 
 std::string Tensor::info() const {
+  assert(defined());
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
@@ -247,6 +256,7 @@ std::string Tensor::info() const {
 // private
 std::vector<std::size_t> Tensor::broadcast_shape(
     const std::vector<std::size_t>& other_shape) const {
+  assert(defined());
   auto shape = impl_->shape_;
   const auto& longer =
       (shape.size() >= other_shape.size()) ? shape : other_shape;
@@ -296,6 +306,7 @@ const std::vector<std::size_t> Tensor::broadcast_strides(
 void Tensor::format_dim(std::stringstream& c, std::size_t cur_dim,
                         std::vector<std::size_t>& cur_idx,
                         std::size_t k) const {
+  assert(defined());
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;

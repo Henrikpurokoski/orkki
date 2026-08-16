@@ -28,4 +28,7 @@ int main() {
   std::cout << "\nTensor F = slice of C:\n"
             << f.info() << "\nLooks like:\n"
             << f.show() << std::endl;
+  std::cout << "is this defined? " << f.defined()
+            << " What about the gradients? (should not be) "
+            << f.grad().defined() << std::endl;
 }

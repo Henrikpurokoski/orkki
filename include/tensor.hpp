@@ -28,6 +28,8 @@ struct Storage {
 struct TensorImpl {
   // pointer to storage
   std::shared_ptr<Storage> storage_;
+  // pointer to gradient implementation
+  std::shared_ptr<TensorImpl> grad_ = nullptr;
   // shape of tensor
   const std::vector<std::size_t> shape_;
   // how many slots have to be skipped for each dimension
@@ -72,17 +74,41 @@ class Tensor {
   static Tensor Full(const std::vector<std::size_t>& shape, float value,
                      const bool& requires_grad = false);
 
+  // is defined?
+  bool defined() const { return impl_ != nullptr; }
+  explicit operator bool() const { return defined(); }
+
   // getters
   float* data() { return impl_->data(); }
-  const float* data() const { return impl_->data(); }
-  std::size_t size() const { return impl_->size(); }
-  const std::vector<std::size_t>& shape() const { return impl_->shape_; }
-  const std::vector<std::size_t>& strides() const { return impl_->strides_; }
-  const bool& requires_grad() const { return impl_->requires_grad_; }
+  const float* data() const {
+    assert(defined());
+    return impl_->data();
+  }
+  std::size_t size() const {
+    assert(defined());
+    return impl_->size();
+  }
+  const std::vector<std::size_t>& shape() const {
+    assert(defined());
+    return impl_->shape_;
+  }
+  const std::vector<std::size_t>& strides() const {
+    assert(defined());
+    return impl_->strides_;
+  }
+  const bool& requires_grad() const {
+    assert(defined());
+    return impl_->requires_grad_;
+  }
+  const Tensor grad() const {
+    assert(defined());
+    return Tensor(impl_->grad_);
+  }
 
   // indexing
   template <typename... Args>
   float& operator()(Args... args) {
+    assert(defined());
     static_assert((std::is_integral_v<Args> && ...));
 
     assert(sizeof...(args) == impl_->shape_.size());
@@ -98,6 +124,7 @@ class Tensor {
 
   template <typename... Args>
   const float& operator()(Args... args) const {
+    assert(defined());
     static_assert((std::is_integral_v<Args> && ...));
 
     assert(sizeof...(args) == impl_->shape_.size());
@@ -168,6 +195,7 @@ class Tensor {
   // apply unary operator
   template <typename unary>
   Tensor apply_unary(unary op) const {
+    assert(defined());
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
     const bool requires_grad = impl_->requires_grad_;
@@ -189,6 +217,7 @@ class Tensor {
   // apply accumulation (usually returns 0d tensor)
   template <typename Reducer>
   auto apply_accumulate(Reducer reducer) const {
+    assert(defined());
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
 
@@ -223,6 +252,7 @@ class Tensor {
 
   template <typename binary>
   Tensor apply_binary(binary op, const Tensor& other) const {
+    assert(defined());
     auto result_shape = (*this).broadcast_shape(other.shape());
 
     const bool grad = (*this).requires_grad() || other.requires_grad();
