@@ -1,7 +1,9 @@
 #include "../include/tensor.hpp"
+
 // constructor
 Tensor::Tensor(const std::vector<std::size_t>& shape, float value,
-               const bool& requires_grad) {
+               const bool& requires_grad,
+               const std::shared_ptr<Node> child_node) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
                       std::multiplies<std::size_t>());
@@ -16,7 +18,7 @@ Tensor::Tensor(const std::vector<std::size_t>& shape, float value,
     current_stride *= shape[i];
   }
   impl_ = std::make_shared<TensorImpl>(storage, shape, strides, 0.0f,
-                                       requires_grad);
+                                       requires_grad, child_node);
 }
 
 // public
@@ -51,36 +53,65 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
 
 // elementwise arithmetic
 Tensor Tensor::operator+(const Tensor& other) const {
-  return apply_binary([](float x, float y) { return x + y; }, other);
+  std::shared_ptr<Node> node = nullptr;
+  if ((*this).requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
+                                                      other.impl_};
+    node = std::make_shared<AddNode>(operands);
+  }
+
+  return apply_binary([](float x, float y) { return x + y; }, other, node);
 };
 
 Tensor Tensor::operator-(const Tensor& other) const {
-  return apply_binary([](float x, float y) { return x - y; }, other);
+  std::shared_ptr<Node> node = nullptr;
+  if ((*this).requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
+                                                      other.impl_};
+    node = std::make_shared<SubNode>(operands);
+  }
+  return apply_binary([](float x, float y) { return x - y; }, other, node);
 };
 
 Tensor Tensor::operator*(const Tensor& other) const {
-  return apply_binary([](float x, float y) { return x * y; }, other);
+  std::shared_ptr<Node> node = nullptr;
+  if ((*this).requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
+                                                      other.impl_};
+    node = std::make_shared<MulNode>(operands);
+  }
+  return apply_binary([](float x, float y) { return x * y; }, other, node);
 };
 
 Tensor Tensor::operator/(const Tensor& other) const {
-  return apply_binary([](float x, float y) { return x / y; }, other);
+  std::shared_ptr<Node> node = nullptr;
+  if ((*this).requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
+                                                      other.impl_};
+    node = std::make_shared<DivNode>(operands);
+  }
+  return apply_binary([](float x, float y) { return x / y; }, other, node);
 };
 
 // scalar arithmetic
 Tensor Tensor::operator+(const float scalar) const {
-  return apply_unary([scalar](float x) { return x + scalar; });
+  Tensor other = Tensor({}, scalar);
+  return (*this) + other;
 }
 
 Tensor Tensor::operator-(const float scalar) const {
-  return apply_unary([scalar](float x) { return x - scalar; });
+  Tensor other = Tensor({}, scalar);
+  return (*this) - other;
 }
 
 Tensor Tensor::operator*(const float scalar) const {
-  return apply_unary([scalar](float x) { return x * scalar; });
+  Tensor other = Tensor({}, scalar);
+  return (*this) * other;
 }
 
 Tensor Tensor::operator/(const float scalar) const {
-  return apply_unary([scalar](float x) { return x / scalar; });
+  Tensor other = Tensor({}, scalar);
+  return (*this) / other;
 }
 
 // reductions
@@ -176,7 +207,8 @@ Tensor Tensor::transpose() const {
   std::reverse(shape.begin(), shape.end());
   std::reverse(strides.begin(), strides.end());
   auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
-                                           requires_grad);
+                                           requires_grad,
+                                           nullptr);  // placeholder nullptr
   return Tensor(impl);
 }
 
@@ -203,7 +235,8 @@ Tensor Tensor::slice(
     offset += first * strides[i];
   }
   auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
-                                           requires_grad);
+                                           requires_grad,
+                                           nullptr);  // placeholder nullptr
   return Tensor(impl);
 }
 
@@ -233,7 +266,7 @@ std::string Tensor::info() const {
   auto storage = impl_->storage_;
   auto requires_grad = impl_->requires_grad_;
   std::stringstream c;
-  c << "Tensor with shape: (";
+  c << "Tensor with implementation at " << impl_ << " with shape: (";
   for (std::size_t i = 0; i < shape.size(); i++) {
     c << shape[i];
     if (i < shape.size() - 1) {

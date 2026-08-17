@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "math_components.hpp"
+#include "node.hpp"
 
 // a separate storage struct: saves just the tensor data
 struct Storage {
@@ -30,6 +31,8 @@ struct TensorImpl {
   std::shared_ptr<Storage> storage_;
   // pointer to gradient implementation
   std::shared_ptr<TensorImpl> grad_ = nullptr;
+  // node this tensor is a parent of
+  std::shared_ptr<Node> child_node_;
   // shape of tensor
   const std::vector<std::size_t> shape_;
   // how many slots have to be skipped for each dimension
@@ -51,12 +54,14 @@ struct TensorImpl {
   explicit TensorImpl(const std::shared_ptr<Storage>& storage,
                       const std::vector<std::size_t>& shape,
                       const std::vector<std::size_t>& strides,
-                      const std::size_t& offset, const bool& requires_grad)
+                      const std::size_t& offset, const bool& requires_grad,
+                      const std::shared_ptr<Node>& child_node)
       : storage_(storage),
         shape_(shape),
         strides_(strides),
         offset_(offset),
-        requires_grad_(requires_grad) {}
+        requires_grad_(requires_grad),
+        child_node_(child_node) {}
 };
 
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
@@ -103,6 +108,10 @@ class Tensor {
   const Tensor grad() const {
     assert(defined());
     return Tensor(impl_->grad_);
+  }
+  const std::shared_ptr<Node>& child_node() const {
+    assert(defined());
+    return impl_->child_node_;
   }
 
   // indexing
@@ -188,7 +197,8 @@ class Tensor {
 
   // overloaded constructor for ease of life
   explicit Tensor(const std::vector<std::size_t>& shape, float value,
-                  const bool& requires_grad = false);
+                  const bool& requires_grad = false,
+                  const std::shared_ptr<Node> child_node = nullptr);
   // pointer to implementation
   std::shared_ptr<TensorImpl> impl_;
 
@@ -251,13 +261,15 @@ class Tensor {
       const std::vector<std::size_t>& strides);
 
   template <typename binary>
-  Tensor apply_binary(binary op, const Tensor& other) const {
+  Tensor apply_binary(binary op, const Tensor& other,
+                      std::shared_ptr<Node> node) const {
     assert(defined());
+    assert(other.defined());
     auto result_shape = (*this).broadcast_shape(other.shape());
+    bool requires_grad = node != nullptr;
 
-    const bool grad = (*this).requires_grad() || other.requires_grad();
-
-    Tensor result(result_shape, 0.0f, grad);
+    Tensor result(result_shape, 0.0f, requires_grad, node);
+    node->set_parent(result.impl_);
 
     std::vector<std::size_t> strides_t = Tensor::broadcast_strides(
         result_shape, (*this).shape(), (*this).strides());
