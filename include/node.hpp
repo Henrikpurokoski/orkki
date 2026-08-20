@@ -14,6 +14,8 @@ class Node {
 
   virtual ~Node() = default;
 
+  std::string info_helper(const std::string& node_type) const;
+
   virtual std::string info() const = 0;
 
   const std::vector<std::shared_ptr<TensorImpl>>& children() {
@@ -29,30 +31,13 @@ class Node {
   std::weak_ptr<TensorImpl> parent_;
 };
 
+// basic arithmetic
 class AddNode : public Node {
  public:
   AddNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override {
-    std::stringstream c;
-    c << "This an AddNode.\nParent:\n";
-    if (auto parent = parent_.lock()) {
-      c << parent << ".\n";
-    } else {
-      c << "an object that no longer exists.\n";
-    }
-    c << "Children:\n";
-
-    for (std::size_t i = 0; i < children_.size(); ++i) {
-      c << children_[i];
-      if (i < children_.size() - 1) {
-        c << "\n";
-      }
-    }
-    c << ".";
-    return c.str();
-  }
+  std::string info() const override { return info_helper("AddNode"); }
 };
 
 class SubNode : public Node {
@@ -60,25 +45,7 @@ class SubNode : public Node {
   SubNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override {
-    std::stringstream c;
-    c << "This a SubNode.\nParent:\n";
-    if (auto parent = parent_.lock()) {
-      c << parent << ".\n";
-    } else {
-      c << "an object that no longer exists.\n";
-    }
-    c << "Children:\n";
-
-    for (std::size_t i = 0; i < children_.size(); ++i) {
-      c << children_[i];
-      if (i < children_.size() - 1) {
-        c << "\n";
-      }
-    }
-    c << ".";
-    return c.str();
-  }
+  std::string info() const override { return info_helper("SubNode"); }
 };
 
 class MulNode : public Node {
@@ -86,25 +53,7 @@ class MulNode : public Node {
   MulNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override {
-    std::stringstream c;
-    c << "This a MulNode.\nParent:\n";
-    if (auto parent = parent_.lock()) {
-      c << parent << ".\n";
-    } else {
-      c << "an object that no longer exists.\n";
-    }
-    c << "Children:\n";
-
-    for (std::size_t i = 0; i < children_.size(); ++i) {
-      c << children_[i];
-      if (i < children_.size() - 1) {
-        c << "\n";
-      }
-    }
-    c << ".";
-    return c.str();
-  }
+  std::string info() const override { return info_helper("MulNode"); }
 };
 
 class DivNode : public Node {
@@ -112,23 +61,124 @@ class DivNode : public Node {
   DivNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override {
-    std::stringstream c;
-    c << "This a DivNode.\nParent:\n";
-    if (auto parent = parent_.lock()) {
-      c << parent << ".\n";
-    } else {
-      c << "an object that no longer exists.\n";
-    }
-    c << "Children:\n";
+  std::string info() const override { return info_helper("DivNode"); }
+};
 
-    for (std::size_t i = 0; i < children_.size(); ++i) {
-      c << children_[i];
-      if (i < children_.size() - 1) {
-        c << "\n";
-      }
-    }
-    c << ".";
-    return c.str();
-  }
+// reductions
+class SumNode : public Node {
+ public:
+  SumNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("SumNode"); }
+};
+
+class MeanNode : public Node {
+ public:
+  MeanNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("MeanNode"); }
+};
+
+class MaxNode : public Node {
+ public:
+  MaxNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("MaxNode"); }
+};
+
+class MinNode : public Node {
+ public:
+  MinNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("MinNode"); }
+};
+
+// unary stuff
+
+class ReluNode : public Node {
+ public:
+  ReluNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("ReluNode"); }
+};
+
+class SigmaNode : public Node {
+ public:
+  SigmaNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("SigmaNode"); }
+};
+
+class ExpNode : public Node {
+ public:
+  ExpNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("ExpNode"); }
+};
+
+class LogNode : public Node {
+ public:
+  LogNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("LogNode"); }
+};
+
+class SqrtNode : public Node {
+ public:
+  SqrtNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("SqrtNode"); }
+};
+
+class AbsNode : public Node {
+ public:
+  AbsNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("AbsNode"); }
+};
+
+class CopyNode : public Node {
+ public:
+  CopyNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("CopyNode"); }
+};
+
+// transformations
+
+class TransNode : public Node {
+ public:
+  TransNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("TransNode"); }
+};
+
+class SliceNode : public Node {
+ public:
+  SliceNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("SliceNode"); }
+};
+
+// matmul :D
+
+class MatmulNode : public Node {
+ public:
+  MatmulNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  std::string info() const override { return info_helper("MatmulNode"); }
 };

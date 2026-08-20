@@ -117,51 +117,126 @@ Tensor Tensor::operator/(const float scalar) const {
 // reductions
 Tensor Tensor::sum() const {
   assert(defined());
+  std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
-  return Tensor({}, apply_accumulate(tensor_ops::SumReducer{}), requires_grad);
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<SumNode>(operand);
+  }
+  Tensor result({}, apply_accumulate(tensor_ops::SumReducer{}), requires_grad,
+                node);
+  result.set_parent(node);
+  return result;
 }
 
 Tensor Tensor::mean() const {
   assert(defined());
+  std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
-  return Tensor({}, apply_accumulate(tensor_ops::MeanReducer{}), requires_grad);
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<MeanNode>(operand);
+  }
+  Tensor result({}, apply_accumulate(tensor_ops::MeanReducer{}), requires_grad,
+                node);
+  result.set_parent(node);
+  return result;
 }
 
 Tensor Tensor::max() const {
   assert(defined());
+  std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
-  return Tensor({}, apply_accumulate(tensor_ops::MaxReducer{}), requires_grad);
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<MaxNode>(operand);
+  }
+  Tensor result({}, apply_accumulate(tensor_ops::MaxReducer{}), requires_grad,
+                node);
+  result.set_parent(node);
+  return result;
 }
 
 Tensor Tensor::min() const {
   assert(defined());
+  std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
-  return Tensor({}, apply_accumulate(tensor_ops::MinReducer{}), requires_grad);
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<MinNode>(operand);
+  }
+  Tensor result({}, apply_accumulate(tensor_ops::MinReducer{}), requires_grad,
+                node);
+  result.set_parent(node);
+  return result;
 }
 
 // unary ops
 Tensor Tensor::relu() const {
-  return apply_unary([](float x) { return std::max(0.0f, x); });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<ReluNode>(operand);
+  }
+  return apply_unary([](float x) { return std::max(0.0f, x); }, node);
 }
 
 Tensor Tensor::sigmoid() const {
-  return apply_unary([](float x) { return 1.0f / (1.0f + std::exp(-x)); });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<SigmaNode>(operand);
+  }
+  return apply_unary([](float x) { return 1.0f / (1.0f + std::exp(-x)); },
+                     node);
 }
 
 Tensor Tensor::exp() const {
-  return apply_unary([](float x) { return std::exp(x); });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<ExpNode>(operand);
+  }
+  return apply_unary([](float x) { return std::exp(x); }, node);
 }
 
 Tensor Tensor::log() const {
-  return apply_unary([](float x) { return std::log(x); });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<LogNode>(operand);
+  }
+  return apply_unary([](float x) { return std::log(x); }, node);
 }
 
 Tensor Tensor::sqrt() const {
-  return apply_unary([](float x) { return std::sqrt(x); });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<SqrtNode>(operand);
+  }
+  return apply_unary([](float x) { return std::sqrt(x); }, node);
 }
 
 Tensor Tensor::abs() const {
-  return apply_unary([](float x) { return std::abs(x); });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<AbsNode>(operand);
+  }
+  return apply_unary([](float x) { return std::abs(x); }, node);
 }
 
 // matrix multiplication
@@ -171,6 +246,14 @@ Tensor Tensor::matmul(const Tensor& other) const {
   assert(shape.size() == 2);
   assert(other.shape().size() == 2);
 
+  std::shared_ptr<Node> node = nullptr;
+  bool requires_grad = false;
+  if ((*this).requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
+                                                      other.impl_};
+    node = std::make_shared<MatmulNode>(operands);
+    requires_grad = true;
+  }
   std::size_t t_rows = shape[0];
   std::size_t t_columns = shape[1];
 
@@ -181,7 +264,8 @@ Tensor Tensor::matmul(const Tensor& other) const {
 
   std::vector<std::size_t> res_shape = {t_rows, o_columns};
 
-  Tensor result(res_shape, 0.0f);
+  Tensor result(res_shape, 0.0f, requires_grad, node);
+  result.set_parent(node);
 
   for (std::size_t i = 0; i < o_columns; ++i) {
     for (std::size_t j = 0; j < t_rows; ++j) {
@@ -203,13 +287,20 @@ Tensor Tensor::transpose() const {
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
   auto requires_grad = impl_->requires_grad_;
+  std::shared_ptr<Node> node = nullptr;
+
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<TransNode>(operand);
+  }
 
   std::reverse(shape.begin(), shape.end());
   std::reverse(strides.begin(), strides.end());
   auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
-                                           requires_grad,
-                                           nullptr);  // placeholder nullptr
-  return Tensor(impl);
+                                           requires_grad, node);
+  Tensor result(impl);
+  result.set_parent(node);
+  return result;
 }
 
 // slice
@@ -221,6 +312,12 @@ Tensor Tensor::slice(
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
   auto requires_grad = impl_->requires_grad_;
+  std::shared_ptr<Node> node = nullptr;
+
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<SliceNode>(operand);
+  }
 
   assert(slices.size() == shape.size());
 
@@ -235,13 +332,21 @@ Tensor Tensor::slice(
     offset += first * strides[i];
   }
   auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
-                                           requires_grad,
-                                           nullptr);  // placeholder nullptr
-  return Tensor(impl);
+                                           requires_grad, node);
+  Tensor result(impl);
+  result.set_parent(node);
+  return result;
 }
 
 Tensor Tensor::copy() const {
-  return apply_unary([](float x) { return x; });
+  assert(defined());
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = impl_->requires_grad_;
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<CopyNode>(operand);
+  }
+  return apply_unary([](float x) { return x; }, node);
 }
 
 std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
@@ -282,11 +387,24 @@ std::string Tensor::info() const {
   }
   c << "),\noffset: " << offset;
   c << ",\n" << ((requires_grad) ? "using gradients" : "not using gradients");
+  c << ",\n"
+    << (((*this).isLeaf()) ? "not having children" : "having children");
   c << ",\npointing to storage at: " << storage << ".";
   return c.str();
 }
 
+std::string Tensor::child_info() const {
+  return (((*this).isLeaf() ? "This tensor does not have a child node."
+                            : impl_->child_node_->info()));
+}
+
 // private
+void Tensor::set_parent(const std::shared_ptr<Node>& node) const {
+  if (node != nullptr) {
+    node->set_parent(impl_);
+  }
+}
+
 std::vector<std::size_t> Tensor::broadcast_shape(
     const std::vector<std::size_t>& other_shape) const {
   assert(defined());

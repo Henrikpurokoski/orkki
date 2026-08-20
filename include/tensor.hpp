@@ -101,7 +101,7 @@ class Tensor {
     assert(defined());
     return impl_->strides_;
   }
-  const bool& requires_grad() const {
+  const bool requires_grad() const {
     assert(defined());
     return impl_->requires_grad_;
   }
@@ -113,6 +113,9 @@ class Tensor {
     assert(defined());
     return impl_->child_node_;
   }
+
+  // graph checks
+  bool isLeaf() const { return impl_->child_node_ == nullptr; }
 
   // indexing
   template <typename... Args>
@@ -165,7 +168,7 @@ class Tensor {
   Tensor max() const;
   Tensor min() const;
 
-  // unary activations
+  // unary operations
   Tensor relu() const;
   Tensor sigmoid() const;
   Tensor exp() const;
@@ -185,11 +188,10 @@ class Tensor {
   // copy
   Tensor copy() const;
 
-  // string
-  std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
-
   // info
+  std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
   std::string info() const;
+  std::string child_info() const;
 
  private:
   // basic constructor
@@ -202,15 +204,19 @@ class Tensor {
   // pointer to implementation
   std::shared_ptr<TensorImpl> impl_;
 
+  // set as a parent of a node if exists
+  void set_parent(const std::shared_ptr<Node>& node) const;
+
   // apply unary operator
   template <typename unary>
-  Tensor apply_unary(unary op) const {
+  Tensor apply_unary(unary op, const std::shared_ptr<Node>& node) const {
     assert(defined());
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
-    const bool requires_grad = impl_->requires_grad_;
+    bool requires_grad = node != nullptr;
 
-    Tensor result(shape, 0.0f, requires_grad);
+    Tensor result(shape, 0.0f, requires_grad, node);
+    result.set_parent(node);
 
     for (std::size_t i = 0; i < result.size(); ++i) {
       std::size_t iter_t = impl_->offset_;
@@ -262,14 +268,14 @@ class Tensor {
 
   template <typename binary>
   Tensor apply_binary(binary op, const Tensor& other,
-                      std::shared_ptr<Node> node) const {
+                      const std::shared_ptr<Node>& node) const {
     assert(defined());
     assert(other.defined());
     auto result_shape = (*this).broadcast_shape(other.shape());
     bool requires_grad = node != nullptr;
 
     Tensor result(result_shape, 0.0f, requires_grad, node);
-    node->set_parent(result.impl_);
+    result.set_parent(node);
 
     std::vector<std::size_t> strides_t = Tensor::broadcast_strides(
         result_shape, (*this).shape(), (*this).strides());
