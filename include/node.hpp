@@ -17,6 +17,7 @@ class Node {
   std::string info_helper(const std::string& node_type) const;
 
   virtual std::string info() const = 0;
+  virtual std::string name() const = 0;
 
   const std::vector<std::shared_ptr<TensorImpl>>& children() {
     return children_;
@@ -37,7 +38,8 @@ class AddNode : public Node {
   AddNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("AddNode"); }
+  std::string name() const override { return "AddNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class SubNode : public Node {
@@ -45,7 +47,8 @@ class SubNode : public Node {
   SubNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("SubNode"); }
+  std::string name() const override { return "SubNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class MulNode : public Node {
@@ -53,7 +56,8 @@ class MulNode : public Node {
   MulNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("MulNode"); }
+  std::string name() const override { return "MulNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class DivNode : public Node {
@@ -61,7 +65,8 @@ class DivNode : public Node {
   DivNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("DivNode"); }
+  std::string name() const override { return "DivNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 // reductions
@@ -70,7 +75,8 @@ class SumNode : public Node {
   SumNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("SumNode"); }
+  std::string name() const override { return "SumNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class MeanNode : public Node {
@@ -78,7 +84,8 @@ class MeanNode : public Node {
   MeanNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("MeanNode"); }
+  std::string name() const override { return "MeanNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class MaxNode : public Node {
@@ -86,7 +93,8 @@ class MaxNode : public Node {
   MaxNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("MaxNode"); }
+  std::string name() const override { return "MaxNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class MinNode : public Node {
@@ -94,7 +102,8 @@ class MinNode : public Node {
   MinNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("MinNode"); }
+  std::string name() const override { return "MinNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 // unary stuff
@@ -104,7 +113,8 @@ class ReluNode : public Node {
   ReluNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("ReluNode"); }
+  std::string name() const override { return "ReluNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class SigmaNode : public Node {
@@ -112,7 +122,8 @@ class SigmaNode : public Node {
   SigmaNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("SigmaNode"); }
+  std::string name() const override { return "SigmaNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class ExpNode : public Node {
@@ -120,7 +131,8 @@ class ExpNode : public Node {
   ExpNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("ExpNode"); }
+  std::string name() const override { return "ExpNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class LogNode : public Node {
@@ -128,7 +140,8 @@ class LogNode : public Node {
   LogNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("LogNode"); }
+  std::string name() const override { return "LogNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class SqrtNode : public Node {
@@ -136,7 +149,8 @@ class SqrtNode : public Node {
   SqrtNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("SqrtNode"); }
+  std::string name() const override { return "SqrtNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class AbsNode : public Node {
@@ -144,7 +158,8 @@ class AbsNode : public Node {
   AbsNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("AbsNode"); }
+  std::string name() const override { return "AbsNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class CopyNode : public Node {
@@ -152,7 +167,8 @@ class CopyNode : public Node {
   CopyNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("CopyNode"); }
+  std::string name() const override { return "CopyNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 // transformations
@@ -162,7 +178,8 @@ class TransNode : public Node {
   TransNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("TransNode"); }
+  std::string name() const override { return "TransNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 class SliceNode : public Node {
@@ -170,7 +187,8 @@ class SliceNode : public Node {
   SliceNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("SliceNode"); }
+  std::string name() const override { return "SliceNode"; }
+  std::string info() const override { return info_helper(name()); }
 };
 
 // matmul :D
@@ -180,5 +198,6 @@ class MatmulNode : public Node {
   MatmulNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  std::string info() const override { return info_helper("MatmulNode"); }
+  std::string name() const override { return "MatmulNode"; }
+  std::string info() const override { return info_helper(name()); }
 };

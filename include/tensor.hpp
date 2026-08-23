@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <cmath>
 #include <functional>
 #include <iomanip>
@@ -10,11 +11,24 @@
 #include <numeric>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
 #include "math_components.hpp"
 #include "node.hpp"
+
+// for constructing tensors
+struct TensorConstructorNode {
+  bool leaf_;
+  float value_;
+  std::vector<TensorConstructorNode> children_;
+
+  TensorConstructorNode(const float value) : value_(value), leaf_(true) {}
+  TensorConstructorNode(
+      const std::initializer_list<TensorConstructorNode>& children)
+      : children_(children), leaf_(false) {}
+};
 
 // a separate storage struct: saves just the tensor data
 struct Storage {
@@ -22,7 +36,7 @@ struct Storage {
   std::vector<float> data_;
 
   // constructoror
-  explicit Storage(const std::size_t size, float value) : data_(size, value) {}
+  explicit Storage(std::vector<float>& data) : data_(data) {}
 };
 
 // tensor implementation: saves tensor metadata and points to a storage struct
@@ -67,9 +81,9 @@ struct TensorImpl {
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
 class Tensor {
  public:
-  // four constructors: initiate with zeros, ones, any value and with random
-  static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
-                       float high = 1.0f, const bool& requires_grad = false);
+  // constructors
+  Tensor(std::initializer_list<TensorConstructorNode> nodes);
+
   static Tensor Zeros(const std::vector<std::size_t>& shape,
                       const bool& requires_grad = false);
 
@@ -78,6 +92,12 @@ class Tensor {
 
   static Tensor Full(const std::vector<std::size_t>& shape, float value,
                      const bool& requires_grad = false);
+
+  static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
+                       float high = 1.0f, const bool& requires_grad = false);
+
+  static Tensor String(std::string tensor_string,
+                       const bool& requires_grad = false);
 
   // is defined?
   bool defined() const { return impl_ != nullptr; }
@@ -115,7 +135,7 @@ class Tensor {
   }
 
   // graph checks
-  bool isLeaf() const { return impl_->child_node_ == nullptr; }
+  bool leaf() const { return impl_->child_node_ == nullptr; }
 
   // indexing
   template <typename... Args>
@@ -192,15 +212,21 @@ class Tensor {
   std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
   std::string info() const;
   std::string child_info() const;
+  std::string tree() const;
 
  private:
-  // basic constructor
+  // constructor
   explicit Tensor(const std::shared_ptr<TensorImpl> impl) : impl_(impl) {}
 
   // overloaded constructor for ease of life
+  explicit Tensor(const std::vector<std::size_t>& shape,
+                  std::vector<float>& data, const bool& requires_grad = false,
+                  const std::shared_ptr<Node> child_node = nullptr);
+
   explicit Tensor(const std::vector<std::size_t>& shape, float value,
                   const bool& requires_grad = false,
                   const std::shared_ptr<Node> child_node = nullptr);
+
   // pointer to implementation
   std::shared_ptr<TensorImpl> impl_;
 
@@ -299,4 +325,13 @@ class Tensor {
 
   void format_dim(std::stringstream& c, std::size_t cur_dim,
                   std::vector<std::size_t>& cur_idx, std::size_t k) const;
+
+  static void parse_string(std::string& s, std::size_t& cursor,
+                           std::size_t depth, std::vector<std::size_t>& shape,
+                           std::vector<float>& data);
+
+  static void parse_constructor_tree(TensorConstructorNode& cur,
+                                     std::size_t depth,
+                                     std::vector<std::size_t>& shape,
+                                     std::vector<float>& data);
 };

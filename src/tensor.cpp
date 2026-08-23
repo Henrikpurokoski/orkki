@@ -1,15 +1,37 @@
 #include "../include/tensor.hpp"
 
-// constructor
+// private constructor
+Tensor::Tensor(const std::vector<std::size_t>& shape, std::vector<float>& data,
+               const bool& requires_grad,
+               const std::shared_ptr<Node> child_node) {
+  const std::size_t size =
+      std::accumulate(shape.begin(), shape.end(), std::size_t{1},
+                      std::multiplies<std::size_t>());
+  const std::size_t dims = shape.size();
+
+  assert(data.size() == size);
+  auto storage = std::make_shared<Storage>(data);
+  auto strides = std::vector<std::size_t>(dims, 0);
+
+  std::size_t current_stride = 1;
+  for (std::size_t i = dims; i-- > 0;) {
+    strides[i] = current_stride;
+    current_stride *= shape[i];
+  }
+  impl_ = std::make_shared<TensorImpl>(storage, shape, strides, 0.0f,
+                                       requires_grad, child_node);
+}
+
 Tensor::Tensor(const std::vector<std::size_t>& shape, float value,
                const bool& requires_grad,
                const std::shared_ptr<Node> child_node) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
                       std::multiplies<std::size_t>());
-  const std::size_t dims = static_cast<std::size_t>(shape.size());
+  const std::size_t dims = shape.size();
 
-  auto storage = std::make_shared<Storage>(size, value);
+  auto data = std::vector<float>(size, value);
+  auto storage = std::make_shared<Storage>(data);
   auto strides = std::vector<std::size_t>(dims, 0);
 
   std::size_t current_stride = 1;
@@ -22,6 +44,25 @@ Tensor::Tensor(const std::vector<std::size_t>& shape, float value,
 }
 
 // public
+Tensor::Tensor(std::initializer_list<TensorConstructorNode> nodes) {
+  std::vector<std::size_t> shape;
+  std::vector<float> data;
+  auto root = TensorConstructorNode(nodes);
+  parse_constructor_tree(root, 0, shape, data);
+
+  const std::size_t dims = shape.size();
+  auto storage = std::make_shared<Storage>(data);
+  auto strides = std::vector<std::size_t>(dims, 0);
+
+  std::size_t current_stride = 1;
+  for (std::size_t i = dims; i-- > 0;) {
+    strides[i] = current_stride;
+    current_stride *= shape[i];
+  }
+  impl_ = std::make_shared<TensorImpl>(storage, shape, strides, 0.0f, false,
+                                       nullptr);
+}
+
 Tensor Tensor::Zeros(const std::vector<std::size_t>& shape,
                      const bool& requires_grad) {
   return Tensor(shape, 0.0f, requires_grad);
@@ -50,6 +91,23 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
   std::generate(data_first, data_first + data_len, gen);
   return vec;
 };
+
+Tensor Tensor::String(std::string tensor_string, const bool& requires_grad) {
+  std::size_t cur = 0;
+  std::vector<std::size_t> shape;
+  std::vector<float> data;
+  parse_string(tensor_string, cur, 0, shape, data);
+  while (tensor_string[cur] == ' ' || tensor_string[cur] == '\n') {
+    ++cur;
+  }
+  if (cur < tensor_string.length()) {
+    std::stringstream error_msg;
+    error_msg << "Unexpected character: '" << tensor_string[cur]
+              << "' at pos: " << cur << ".";
+    throw std::runtime_error(error_msg.str());
+  }
+  return Tensor(shape, data, requires_grad);
+}
 
 // elementwise arithmetic
 Tensor Tensor::operator+(const Tensor& other) const {
@@ -95,22 +153,22 @@ Tensor Tensor::operator/(const Tensor& other) const {
 
 // scalar arithmetic
 Tensor Tensor::operator+(const float scalar) const {
-  Tensor other = Tensor({}, scalar);
+  Tensor other = Tensor({}, scalar, false);
   return (*this) + other;
 }
 
 Tensor Tensor::operator-(const float scalar) const {
-  Tensor other = Tensor({}, scalar);
+  Tensor other = Tensor({}, scalar, false);
   return (*this) - other;
 }
 
 Tensor Tensor::operator*(const float scalar) const {
-  Tensor other = Tensor({}, scalar);
+  Tensor other = Tensor({}, scalar, false);
   return (*this) * other;
 }
 
 Tensor Tensor::operator/(const float scalar) const {
-  Tensor other = Tensor({}, scalar);
+  Tensor other = Tensor({}, scalar, false);
   return (*this) / other;
 }
 
@@ -387,15 +445,36 @@ std::string Tensor::info() const {
   }
   c << "),\noffset: " << offset;
   c << ",\n" << ((requires_grad) ? "using gradients" : "not using gradients");
-  c << ",\n"
-    << (((*this).isLeaf()) ? "not having children" : "having children");
+  c << ",\n" << (((*this).leaf()) ? "not having children" : "having children");
   c << ",\npointing to storage at: " << storage << ".";
   return c.str();
 }
 
 std::string Tensor::child_info() const {
-  return (((*this).isLeaf() ? "This tensor does not have a child node."
-                            : impl_->child_node_->info()));
+  return (((*this).leaf() ? "This tensor does not have a child node."
+                          : impl_->child_node_->info()));
+}
+
+std::string Tensor::tree() const {
+  assert(defined());
+  std::stringstream c;
+  c << show();
+  if (!leaf()) {
+    auto child = child_node();
+    c << "\n\u2191\n";
+    c << child->name();
+    c << "{\n";
+    auto grandchildren = child->children();
+    for (std::size_t i = 0; i < grandchildren.size(); ++i) {
+      auto grandchild = Tensor(grandchildren[i]);
+      c << grandchild.tree();
+      if (i < grandchildren.size() - 1) {
+        c << "\n,\n";
+      }
+    }
+    c << "\n}";
+  }
+  return c.str();
 }
 
 // private
@@ -537,4 +616,118 @@ void Tensor::format_dim(std::stringstream& c, std::size_t cur_dim,
       c << "]";
     }
   }
+}
+
+void Tensor::parse_string(std::string& s, std::size_t& cur, std::size_t depth,
+                          std::vector<std::size_t>& shape,
+                          std::vector<float>& data) {
+  while (s[cur] == ' ' || s[cur] == '\n') {
+    ++cur;
+  }
+  if (cur >= s.length()) {
+    std::stringstream error_msg;
+    error_msg << "Unexpected end of string at pos: " << cur << ".";
+    throw std::runtime_error(error_msg.str());
+  }
+  if (s[cur] == '[') {
+    ++cur;
+    std::size_t count = 0;
+    while (true) {
+      while (s[cur] == ' ' || s[cur] == '\n') {
+        ++cur;
+      }
+      if (cur >= s.length()) {
+        std::stringstream error_msg;
+        error_msg << "Unexpected end of string at pos: " << cur << ".";
+        throw std::runtime_error(error_msg.str());
+      }
+      if (s[cur] == ']') {
+        ++cur;
+        break;
+      }
+      parse_string(s, cur, depth + 1, shape, data);
+      ++count;
+      while (s[cur] == ' ' || s[cur] == '\n') {
+        ++cur;
+      }
+      if (cur >= s.length()) {
+        std::stringstream error_msg;
+        error_msg << "Unexpected end of string at pos: " << cur << ".";
+        throw std::runtime_error(error_msg.str());
+      }
+      auto done = false;
+      switch (s[cur]) {
+        case ']':
+          ++cur;
+          done = true;
+          break;
+        case ',':
+          ++cur;
+          break;
+        default:
+          std::stringstream error_msg;
+          error_msg << "Unexpected character: '" << s[cur]
+                    << "' at pos: " << cur << ".";
+          throw std::runtime_error(error_msg.str());
+          break;
+      }
+      if (done) {
+        break;
+      }
+    }
+    if (shape.size() <= depth) {
+      shape.resize(depth + 1, 0);
+    }
+    if (shape[depth] == 0) {
+      shape[depth] = count;
+    } else if (shape[depth] != count) {
+      std::stringstream error_msg;
+      error_msg << "Shape mismatch: " << count
+                << " did not match the previously initialized shape of "
+                << shape[depth] << " at depth " << depth << " and pos " << cur
+                << ".";
+      throw std::runtime_error(error_msg.str());
+    }
+  } else if (s[cur] == '-' ||
+             std::isdigit(static_cast<unsigned char>(s[cur]))) {
+    std::size_t chars_read;
+    std::string sub = s.substr(cur);
+    float cur_data = std::stof(sub, &chars_read);
+    cur += chars_read;
+    data.push_back(cur_data);
+  } else {
+    std::stringstream error_msg;
+    error_msg << "Unexpected character: '" << s[cur] << "' at pos: " << cur
+              << ".";
+    throw std::runtime_error(error_msg.str());
+  }
+  return;
+}
+
+void Tensor::parse_constructor_tree(TensorConstructorNode& cur,
+                                    std::size_t depth,
+                                    std::vector<std::size_t>& shape,
+                                    std::vector<float>& data) {
+  if (!cur.leaf_) {
+    std::size_t count = 0;
+    for (std::size_t i = 0; i < cur.children_.size(); ++i) {
+      parse_constructor_tree(cur.children_[i], depth + 1, shape, data);
+      ++count;
+    }
+    if (shape.size() <= depth) {
+      shape.resize(depth + 1, -1);
+    }
+    if (shape[depth] == -1) {
+      shape[depth] = count;
+    } else if (shape[depth] != count) {
+      std::stringstream error_msg;
+      error_msg << "Shape mismatch: " << count
+                << " did not match the previously initialized shape of "
+                << shape[depth] << " at depth " << depth << ".";
+      throw std::runtime_error(error_msg.str());
+    }
+  } else {
+    data.push_back(cur.value_);
+  }
+  return;
 }
