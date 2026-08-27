@@ -9,7 +9,10 @@ Tensor::Tensor(const std::vector<std::size_t>& shape, std::vector<float>& data,
                       std::multiplies<std::size_t>());
   const std::size_t dims = shape.size();
 
-  assert(data.size() == size);
+  if (data.size() != size) {
+    throw std::runtime_error(
+        "Wrong data vector size for constructing a tensor");
+  }
   auto storage = std::make_shared<Storage>(data);
   auto strides = std::vector<std::size_t>(dims, 0);
 
@@ -50,7 +53,15 @@ Tensor::Tensor(std::initializer_list<TensorConstructorNode> nodes) {
   auto root = TensorConstructorNode(nodes);
   parse_constructor_tree(root, 0, shape, data);
 
+  const std::size_t size =
+      std::accumulate(shape.begin(), shape.end(), std::size_t{1},
+                      std::multiplies<std::size_t>());
   const std::size_t dims = shape.size();
+  if (data.size() != size) {
+    throw std::runtime_error(
+        "Wrong data vector size for constructing a tensor");
+  }
+
   auto storage = std::make_shared<Storage>(data);
   auto strides = std::vector<std::size_t>(dims, 0);
 
@@ -109,12 +120,25 @@ Tensor Tensor::String(std::string tensor_string, const bool& requires_grad) {
   return Tensor(shape, data, requires_grad);
 }
 
+// set gradient
+void Tensor::set_grad(bool grad_bool) const {
+  if (impl_->child_node_ == nullptr) {
+    impl_->requires_grad_ = grad_bool;
+  } else {
+    throw std::runtime_error(
+        "Cannot change gradient requirements for a branch tensor!");
+  }
+  return;
+}
+
 // elementwise arithmetic
 Tensor Tensor::operator+(const Tensor& other) const {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use +, tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
-  if ((*this).requires_grad() || other.requires_grad()) {
-    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
-                                                      other.impl_};
+  if (requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<AddNode>(operands);
   }
 
@@ -122,30 +146,36 @@ Tensor Tensor::operator+(const Tensor& other) const {
 };
 
 Tensor Tensor::operator-(const Tensor& other) const {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use -, tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
-  if ((*this).requires_grad() || other.requires_grad()) {
-    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
-                                                      other.impl_};
+  if (requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<SubNode>(operands);
   }
   return apply_binary([](float x, float y) { return x - y; }, other, node);
 };
 
 Tensor Tensor::operator*(const Tensor& other) const {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use *, tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
-  if ((*this).requires_grad() || other.requires_grad()) {
-    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
-                                                      other.impl_};
+  if (requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<MulNode>(operands);
   }
   return apply_binary([](float x, float y) { return x * y; }, other, node);
 };
 
 Tensor Tensor::operator/(const Tensor& other) const {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use /, tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
-  if ((*this).requires_grad() || other.requires_grad()) {
-    std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
-                                                      other.impl_};
+  if (requires_grad() || other.requires_grad()) {
+    std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<DivNode>(operands);
   }
   return apply_binary([](float x, float y) { return x / y; }, other, node);
@@ -153,28 +183,42 @@ Tensor Tensor::operator/(const Tensor& other) const {
 
 // scalar arithmetic
 Tensor Tensor::operator+(const float scalar) const {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use +, tensor has no implementation");
+  }
   Tensor other = Tensor({}, scalar, false);
   return (*this) + other;
 }
 
 Tensor Tensor::operator-(const float scalar) const {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use -, tensor has no implementation");
+  }
   Tensor other = Tensor({}, scalar, false);
   return (*this) - other;
 }
 
 Tensor Tensor::operator*(const float scalar) const {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use *, tensor has no implementation");
+  }
   Tensor other = Tensor({}, scalar, false);
   return (*this) * other;
 }
 
 Tensor Tensor::operator/(const float scalar) const {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use /, tensor has no implementation");
+  }
   Tensor other = Tensor({}, scalar, false);
   return (*this) / other;
 }
 
 // reductions
 Tensor Tensor::sum() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use sum(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -188,7 +232,9 @@ Tensor Tensor::sum() const {
 }
 
 Tensor Tensor::mean() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use mean(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -202,7 +248,9 @@ Tensor Tensor::mean() const {
 }
 
 Tensor Tensor::max() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use max(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -216,7 +264,9 @@ Tensor Tensor::max() const {
 }
 
 Tensor Tensor::min() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use min(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -231,7 +281,9 @@ Tensor Tensor::min() const {
 
 // unary ops
 Tensor Tensor::relu() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use relu(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -242,7 +294,10 @@ Tensor Tensor::relu() const {
 }
 
 Tensor Tensor::sigmoid() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error(
+        "Cannot use sigmoid(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -254,7 +309,9 @@ Tensor Tensor::sigmoid() const {
 }
 
 Tensor Tensor::exp() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use exp(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -265,7 +322,9 @@ Tensor Tensor::exp() const {
 }
 
 Tensor Tensor::log() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use log(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -276,7 +335,9 @@ Tensor Tensor::log() const {
 }
 
 Tensor Tensor::sqrt() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use sqrt(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -287,7 +348,9 @@ Tensor Tensor::sqrt() const {
 }
 
 Tensor Tensor::abs() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use abs(), tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -299,10 +362,13 @@ Tensor Tensor::abs() const {
 
 // matrix multiplication
 Tensor Tensor::matmul(const Tensor& other) const {
-  assert(defined());
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use matmul, tensor has no implementation");
+  }
   auto shape = impl_->shape_;
-  assert(shape.size() == 2);
-  assert(other.shape().size() == 2);
+  if (shape.size() != 2 || other.shape().size() != 2) {
+    throw std::runtime_error("Wrong shapes for matmul");
+  }
 
   std::shared_ptr<Node> node = nullptr;
   bool requires_grad = false;
@@ -318,7 +384,9 @@ Tensor Tensor::matmul(const Tensor& other) const {
   std::size_t o_rows = other.shape()[0];
   std::size_t o_columns = other.shape()[1];
 
-  assert(t_columns == o_rows);
+  if (t_columns != o_rows) {
+    throw std::runtime_error("Wrong shapes for matmul :(");
+  }
 
   std::vector<std::size_t> res_shape = {t_rows, o_columns};
 
@@ -339,7 +407,10 @@ Tensor Tensor::matmul(const Tensor& other) const {
 
 // transpose
 Tensor Tensor::transpose() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error(
+        "Cannot use transpose, tensor has no implementation");
+  }
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
@@ -364,7 +435,9 @@ Tensor Tensor::transpose() const {
 // slice
 Tensor Tensor::slice(
     std::vector<std::pair<std::size_t, std::size_t>> slices) const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use slice, tensor has no implementation");
+  }
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
@@ -397,7 +470,9 @@ Tensor Tensor::slice(
 }
 
 Tensor Tensor::copy() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use copy, tensor has no implementation");
+  }
   std::shared_ptr<Node> node = nullptr;
   const bool requires_grad = impl_->requires_grad_;
   if (requires_grad) {
@@ -408,7 +483,9 @@ Tensor Tensor::copy() const {
 }
 
 std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use show, tensor has no implementation");
+  }
   std::stringstream c;
   c << std::fixed << std::setprecision(precision);
   auto shape = impl_->shape_;
@@ -422,7 +499,9 @@ std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
 }
 
 std::string Tensor::info() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use info, tensor has no implementation");
+  }
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
@@ -456,7 +535,9 @@ std::string Tensor::child_info() const {
 }
 
 std::string Tensor::tree() const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error("Cannot use tree, tensor has no implementation");
+  }
   std::stringstream c;
   c << show();
   if (!leaf()) {
@@ -486,7 +567,10 @@ void Tensor::set_parent(const std::shared_ptr<Node>& node) const {
 
 std::vector<std::size_t> Tensor::broadcast_shape(
     const std::vector<std::size_t>& other_shape) const {
-  assert(defined());
+  if (!defined()) {
+    throw std::runtime_error(
+        "Cannot use shape broadcast, tensor has no implementation");
+  }
   auto shape = impl_->shape_;
   const auto& longer =
       (shape.size() >= other_shape.size()) ? shape : other_shape;
@@ -536,7 +620,6 @@ const std::vector<std::size_t> Tensor::broadcast_strides(
 void Tensor::format_dim(std::stringstream& c, std::size_t cur_dim,
                         std::vector<std::size_t>& cur_idx,
                         std::size_t k) const {
-  assert(defined());
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;

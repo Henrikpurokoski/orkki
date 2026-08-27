@@ -3,6 +3,17 @@
 
 #include "../include/tensor.hpp"
 
+TEST_CASE("basic constructor") {
+  Tensor t = {{2, 3}, {4, 6.0}};
+  CHECK(t.size() == 4);
+  CHECK(t.shape() == std::vector<std::size_t>{2, 2});
+  CHECK(t.strides() == std::vector<std::size_t>{2, 1});
+  CHECK(t(0, 0) == 2);
+  CHECK(t(0, 1) == 3);
+  CHECK(t(1, 0) == 4);
+  CHECK(t(1, 1) == 6);
+}
+
 TEST_CASE("zeros constructor") {
   Tensor t = Tensor::Zeros({2, 4});
   CHECK(t.size() == 8);
@@ -42,6 +53,17 @@ TEST_CASE("random constructor") {
     CHECK(t.data()[i] > -1.0f);
     CHECK(t.data()[i] < 2.0f);
   }
+}
+
+TEST_CASE("string constructor") {
+  Tensor t = Tensor::String("[[2, 3] ,  [4, 6.0]]");
+  CHECK(t.size() == 4);
+  CHECK(t.shape() == std::vector<std::size_t>{2, 2});
+  CHECK(t.strides() == std::vector<std::size_t>{2, 1});
+  CHECK(t(0, 0) == 2);
+  CHECK(t(0, 1) == 3);
+  CHECK(t(1, 0) == 4);
+  CHECK(t(1, 1) == 6);
 }
 
 TEST_CASE("indexing") {
