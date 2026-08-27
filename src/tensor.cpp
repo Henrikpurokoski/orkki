@@ -2,8 +2,7 @@
 
 // private constructor
 Tensor::Tensor(const std::vector<std::size_t>& shape, std::vector<float>& data,
-               const bool& requires_grad,
-               const std::shared_ptr<Node> child_node) {
+               bool requires_grad, const std::shared_ptr<Node> child_node) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
                       std::multiplies<std::size_t>());
@@ -26,8 +25,7 @@ Tensor::Tensor(const std::vector<std::size_t>& shape, std::vector<float>& data,
 }
 
 Tensor::Tensor(const std::vector<std::size_t>& shape, float value,
-               const bool& requires_grad,
-               const std::shared_ptr<Node> child_node) {
+               bool requires_grad, const std::shared_ptr<Node> child_node) {
   const std::size_t size =
       std::accumulate(shape.begin(), shape.end(), std::size_t{1},
                       std::multiplies<std::size_t>());
@@ -75,22 +73,21 @@ Tensor::Tensor(std::initializer_list<TensorConstructorNode> nodes) {
 }
 
 Tensor Tensor::Zeros(const std::vector<std::size_t>& shape,
-                     const bool& requires_grad) {
+                     bool requires_grad) {
   return Tensor(shape, 0.0f, requires_grad);
 };
 
-Tensor Tensor::Ones(const std::vector<std::size_t>& shape,
-                    const bool& requires_grad) {
+Tensor Tensor::Ones(const std::vector<std::size_t>& shape, bool requires_grad) {
   return Tensor(shape, 1.0f, requires_grad);
 };
 
 Tensor Tensor::Full(const std::vector<std::size_t>& shape, float value,
-                    const bool& requires_grad) {
+                    bool requires_grad) {
   return Tensor(shape, value, requires_grad);
 };
 
 Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
-                      float high, const bool& requires_grad) {
+                      float high, bool requires_grad) {
   static std::random_device rng_device;
   static std::mt19937 engine{rng_device()};
   std::uniform_real_distribution<float> dist{low, high};
@@ -103,7 +100,7 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
   return vec;
 };
 
-Tensor Tensor::String(std::string tensor_string, const bool& requires_grad) {
+Tensor Tensor::String(std::string tensor_string, bool requires_grad) {
   std::size_t cur = 0;
   std::vector<std::size_t> shape;
   std::vector<float> data;

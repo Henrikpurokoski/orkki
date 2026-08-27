@@ -78,7 +78,7 @@ struct TensorImpl {
   explicit TensorImpl(const std::shared_ptr<Storage>& storage,
                       const std::vector<std::size_t>& shape,
                       const std::vector<std::size_t>& strides,
-                      const std::size_t& offset, const bool& requires_grad,
+                      const std::size_t& offset, bool requires_grad,
                       const std::shared_ptr<Node>& child_node)
       : storage_(storage),
         shape_(shape),
@@ -95,19 +95,18 @@ class Tensor {
   Tensor(std::initializer_list<TensorConstructorNode> nodes);
 
   static Tensor Zeros(const std::vector<std::size_t>& shape,
-                      const bool& requires_grad = false);
+                      bool requires_grad = false);
 
   static Tensor Ones(const std::vector<std::size_t>& shape,
-                     const bool& requires_grad = false);
+                     bool requires_grad = false);
 
   static Tensor Full(const std::vector<std::size_t>& shape, float value,
-                     const bool& requires_grad = false);
+                     bool requires_grad = false);
 
   static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
-                       float high = 1.0f, const bool& requires_grad = false);
+                       float high = 1.0f, bool requires_grad = false);
 
-  static Tensor String(std::string tensor_string,
-                       const bool& requires_grad = false);
+  static Tensor String(std::string tensor_string, bool requires_grad = false);
 
   // is defined?
   bool defined() const { return impl_ != nullptr; }
@@ -193,7 +192,9 @@ class Tensor {
 
     std::size_t flat_index = impl_->offset_;
     for (std::size_t i = 0; i < sizeof...(args); ++i) {
-      assert(indices[i] < static_cast<std::size_t>(impl_->shape_[i]));
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      };
       flat_index += indices[i] * impl_->strides_[i];
     }
     return impl_->storage_->data_[flat_index];
@@ -214,7 +215,45 @@ class Tensor {
 
     std::size_t flat_index = impl_->offset_;
     for (std::size_t i = 0; i < sizeof...(args); ++i) {
-      assert(indices[i] < static_cast<std::size_t>(impl_->shape_[i]));
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      }
+      flat_index += indices[i] * impl_->strides_[i];
+    }
+    return impl_->storage_->data_[flat_index];
+  }
+
+  float& operator()(std::vector<std::size_t> indices) {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
+    if (indices.size() != impl_->shape_.size()) {
+      throw std::runtime_error("Wrong number of arguments in operator()");
+    }
+    std::size_t flat_index = impl_->offset_;
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      }
+      flat_index += indices[i] * impl_->strides_[i];
+    }
+    return impl_->storage_->data_[flat_index];
+  }
+
+  const float& operator()(std::vector<std::size_t> indices) const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
+    if (indices.size() != impl_->shape_.size()) {
+      throw std::runtime_error("Wrong number of arguments in operator()");
+    }
+    std::size_t flat_index = impl_->offset_;
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      }
       flat_index += indices[i] * impl_->strides_[i];
     }
     return impl_->storage_->data_[flat_index];
@@ -270,11 +309,11 @@ class Tensor {
 
   // overloaded constructor for ease of life
   explicit Tensor(const std::vector<std::size_t>& shape,
-                  std::vector<float>& data, const bool& requires_grad = false,
+                  std::vector<float>& data, bool requires_grad = false,
                   const std::shared_ptr<Node> child_node = nullptr);
 
   explicit Tensor(const std::vector<std::size_t>& shape, float value,
-                  const bool& requires_grad = false,
+                  bool requires_grad = false,
                   const std::shared_ptr<Node> child_node = nullptr);
 
   // pointer to implementation
