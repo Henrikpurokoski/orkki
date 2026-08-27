@@ -326,12 +326,13 @@ class Tensor {
   void format_dim(std::stringstream& c, std::size_t cur_dim,
                   std::vector<std::size_t>& cur_idx, std::size_t k) const;
 
-  static void parse_string(std::string& s, std::size_t& cursor,
-                           std::size_t depth, std::vector<std::size_t>& shape,
-                           std::vector<float>& data);
+  static std::size_t parse_string(std::string& s, std::size_t& cursor,
+                                  std::size_t depth,
+                                  std::vector<std::size_t>& shape,
+                                  std::vector<float>& data);
 
-  static void parse_constructor_tree(TensorConstructorNode& cur,
-                                     std::size_t depth,
-                                     std::vector<std::size_t>& shape,
-                                     std::vector<float>& data);
+  static std::size_t parse_constructor_tree(TensorConstructorNode& cur,
+                                            std::size_t depth,
+                                            std::vector<std::size_t>& shape,
+                                            std::vector<float>& data);
 };

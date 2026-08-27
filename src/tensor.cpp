@@ -618,9 +618,10 @@ void Tensor::format_dim(std::stringstream& c, std::size_t cur_dim,
   }
 }
 
-void Tensor::parse_string(std::string& s, std::size_t& cur, std::size_t depth,
-                          std::vector<std::size_t>& shape,
-                          std::vector<float>& data) {
+std::size_t Tensor::parse_string(std::string& s, std::size_t& cur,
+                                 std::size_t depth,
+                                 std::vector<std::size_t>& shape,
+                                 std::vector<float>& data) {
   while (s[cur] == ' ' || s[cur] == '\n') {
     ++cur;
   }
@@ -632,6 +633,7 @@ void Tensor::parse_string(std::string& s, std::size_t& cur, std::size_t depth,
   if (s[cur] == '[') {
     ++cur;
     std::size_t count = 0;
+    std::size_t branch_depth;
     while (true) {
       while (s[cur] == ' ' || s[cur] == '\n') {
         ++cur;
@@ -645,7 +647,19 @@ void Tensor::parse_string(std::string& s, std::size_t& cur, std::size_t depth,
         ++cur;
         break;
       }
-      parse_string(s, cur, depth + 1, shape, data);
+      if (count == 0) {
+        branch_depth = parse_string(s, cur, depth + 1, shape, data);
+      } else {
+        auto candidate_branch_depth =
+            parse_string(s, cur, depth + 1, shape, data);
+        if (candidate_branch_depth != branch_depth) {
+          std::stringstream error_msg;
+          error_msg << "Depth mismatch: " << candidate_branch_depth
+                    << " did not match the previously initialized depth of "
+                    << branch_depth << " and pos " << cur << ".";
+          throw std::runtime_error(error_msg.str());
+        }
+      }
       ++count;
       while (s[cur] == ' ' || s[cur] == '\n') {
         ++cur;
@@ -688,6 +702,7 @@ void Tensor::parse_string(std::string& s, std::size_t& cur, std::size_t depth,
                 << ".";
       throw std::runtime_error(error_msg.str());
     }
+    return branch_depth + 1;
   } else if (s[cur] == '-' ||
              std::isdigit(static_cast<unsigned char>(s[cur]))) {
     std::size_t chars_read;
@@ -695,23 +710,38 @@ void Tensor::parse_string(std::string& s, std::size_t& cur, std::size_t depth,
     float cur_data = std::stof(sub, &chars_read);
     cur += chars_read;
     data.push_back(cur_data);
+    return 0;
   } else {
     std::stringstream error_msg;
     error_msg << "Unexpected character: '" << s[cur] << "' at pos: " << cur
               << ".";
     throw std::runtime_error(error_msg.str());
+    return 0;
   }
-  return;
 }
 
-void Tensor::parse_constructor_tree(TensorConstructorNode& cur,
-                                    std::size_t depth,
-                                    std::vector<std::size_t>& shape,
-                                    std::vector<float>& data) {
+std::size_t Tensor::parse_constructor_tree(TensorConstructorNode& cur,
+                                           std::size_t depth,
+                                           std::vector<std::size_t>& shape,
+                                           std::vector<float>& data) {
   if (!cur.leaf_) {
     std::size_t count = 0;
+    std::size_t branch_depth;
     for (std::size_t i = 0; i < cur.children_.size(); ++i) {
-      parse_constructor_tree(cur.children_[i], depth + 1, shape, data);
+      if (i == 0) {
+        branch_depth =
+            parse_constructor_tree(cur.children_[i], depth + 1, shape, data);
+      } else {
+        auto candidate_branch_depth =
+            parse_constructor_tree(cur.children_[i], depth + 1, shape, data);
+        if (candidate_branch_depth != branch_depth) {
+          std::stringstream error_msg;
+          error_msg << "Depth mismatch: " << candidate_branch_depth
+                    << " did not match the previously initialized depth of "
+                    << branch_depth << ".";
+          throw std::runtime_error(error_msg.str());
+        }
+      }
       ++count;
     }
     if (shape.size() <= depth) {
@@ -726,8 +756,9 @@ void Tensor::parse_constructor_tree(TensorConstructorNode& cur,
                 << shape[depth] << " at depth " << depth << ".";
       throw std::runtime_error(error_msg.str());
     }
+    return branch_depth + 1;
   } else {
     data.push_back(cur.value_);
+    return 0;
   }
-  return;
 }
