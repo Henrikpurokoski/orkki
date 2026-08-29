@@ -190,6 +190,33 @@ Tensor Tensor::operator/(const Tensor& other) const {
   return apply_binary([](float x, float y) { return x / y; }, other, node);
 };
 
+Tensor& Tensor::operator+=(const Tensor& other) {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use +=, tensor has no implementation");
+  }
+  return apply_binary([](float x, float y) { return x + y; }, other);
+};
+
+Tensor& Tensor::operator-=(const Tensor& other) {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use -=, tensor has no implementation");
+  }
+  return apply_binary([](float x, float y) { return x - y; }, other);
+};
+
+Tensor& Tensor::operator*=(const Tensor& other) {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use *=, tensor has no implementation");
+  }
+  return apply_binary([](float x, float y) { return x * y; }, other);
+};
+
+Tensor& Tensor::operator/=(const Tensor& other) {
+  if (!defined() || !other.defined()) {
+    throw std::runtime_error("Cannot use /=, tensor has no implementation");
+  }
+  return apply_binary([](float x, float y) { return x / y; }, other);
+};
 // scalar arithmetic
 Tensor Tensor::operator+(const float scalar) const {
   if (!defined()) {
@@ -221,6 +248,38 @@ Tensor Tensor::operator/(const float scalar) const {
   }
   Tensor other = Tensor({}, scalar, false);
   return (*this) / other;
+}
+
+Tensor& Tensor::operator+=(const float scalar) {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use +=, tensor has no implementation");
+  }
+  Tensor other = Tensor({}, scalar, false);
+  return (*this) += other;
+}
+
+Tensor& Tensor::operator-=(const float scalar) {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use -=, tensor has no implementation");
+  }
+  Tensor other = Tensor({}, scalar, false);
+  return (*this) -= other;
+}
+
+Tensor& Tensor::operator*=(const float scalar) {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use *=, tensor has no implementation");
+  }
+  Tensor other = Tensor({}, scalar, false);
+  return (*this) *= other;
+}
+
+Tensor& Tensor::operator/=(const float scalar) {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use /=, tensor has no implementation");
+  }
+  Tensor other = Tensor({}, scalar, false);
+  return (*this) /= other;
 }
 
 // reductions
@@ -367,6 +426,49 @@ Tensor Tensor::abs() const {
     node = std::make_shared<AbsNode>(operand);
   }
   return apply_unary([](float x) { return std::abs(x); }, node);
+}
+
+Tensor& Tensor::relu() {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use relu(), tensor has no implementation");
+  }
+  return apply_unary([](float x) { return std::max(0.0f, x); });
+}
+
+Tensor& Tensor::sigmoid() {
+  if (!defined()) {
+    throw std::runtime_error(
+        "Cannot use sigmoid(), tensor has no implementation");
+  }
+  return apply_unary([](float x) { return 1.0f / (1.0f + std::exp(-x)); });
+}
+
+Tensor& Tensor::exp() {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use exp(), tensor has no implementation");
+  }
+  return apply_unary([](float x) { return std::exp(x); });
+}
+
+Tensor& Tensor::log() {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use log(), tensor has no implementation");
+  }
+  return apply_unary([](float x) { return std::log(x); });
+}
+
+Tensor& Tensor::sqrt() {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use sqrt(), tensor has no implementation");
+  }
+  return apply_unary([](float x) { return std::sqrt(x); });
+}
+
+Tensor& Tensor::abs() {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use abs(), tensor has no implementation");
+  }
+  return apply_unary([](float x) { return std::abs(x); });
 }
 
 // matrix multiplication

@@ -268,11 +268,21 @@ class Tensor {
   Tensor operator*(const Tensor& other) const;
   Tensor operator/(const Tensor& other) const;
 
+  Tensor& operator+=(const Tensor& other);
+  Tensor& operator-=(const Tensor& other);
+  Tensor& operator*=(const Tensor& other);
+  Tensor& operator/=(const Tensor& other);
+
   // scalar arithmetic
   Tensor operator+(const float scalar) const;
   Tensor operator-(const float scalar) const;
   Tensor operator*(const float scalar) const;
   Tensor operator/(const float scalar) const;
+
+  Tensor& operator+=(const float scalar);
+  Tensor& operator-=(const float scalar);
+  Tensor& operator*=(const float scalar);
+  Tensor& operator/=(const float scalar);
 
   // reductions
   Tensor sum() const;
@@ -287,6 +297,13 @@ class Tensor {
   Tensor log() const;
   Tensor sqrt() const;
   Tensor abs() const;
+
+  Tensor& relu();
+  Tensor& sigmoid();
+  Tensor& exp();
+  Tensor& log();
+  Tensor& sqrt();
+  Tensor& abs();
 
   // matrix multiplication
   Tensor matmul(const Tensor& other) const;
@@ -334,7 +351,7 @@ class Tensor {
     }
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
-    bool requires_grad = node != nullptr;
+    bool requires_grad = impl_->requires_grad_;
 
     Tensor result(shape, 0.0f, requires_grad, node);
     result.set_parent(node);
@@ -350,6 +367,31 @@ class Tensor {
       result.data()[i] = op(data()[iter_t]);
     }
     return result;
+  }
+  template <typename unary>
+  Tensor& apply_unary(unary op) {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_unary(), tensor has no implementation");
+    }
+    if (requires_grad()) {
+      throw std::runtime_error(
+          "Cannot use inplace stuff on these fuckass tensors");
+    }
+    auto shape = impl_->shape_;
+    auto strides = impl_->strides_;
+
+    for (std::size_t i = 0; i < size(); ++i) {
+      std::size_t iter_t = impl_->offset_;
+      std::size_t remaining = i;
+      for (std::size_t j = 0; j < shape.size(); ++j) {
+        std::size_t cur = remaining / strides[j];
+        remaining -= cur * strides[j];
+        iter_t += cur * strides[j];
+      }
+      data()[iter_t] = op(data()[iter_t]);
+    }
+    return *this;
   }
   // apply accumulation (usually returns 0d tensor)
   template <typename Reducer>
@@ -393,16 +435,12 @@ class Tensor {
   template <typename binary>
   Tensor apply_binary(binary op, const Tensor& other,
                       const std::shared_ptr<Node>& node) const {
-    if (!defined()) {
-      throw std::runtime_error(
-          "Cannot use apply_binary(), tensor has no implementation");
-    }
-    if (!other.defined()) {
+    if (!defined() || !other.defined()) {
       throw std::runtime_error(
           "Cannot use apply_binary(), tensor has no implementation");
     }
     auto result_shape = broadcast_shape(other.shape());
-    bool requires_grad = node != nullptr;
+    bool requires_grad = impl_->requires_grad_;
 
     Tensor result(result_shape, 0.0f, requires_grad, node);
     result.set_parent(node);
@@ -425,6 +463,63 @@ class Tensor {
       result.data()[i] = op(data()[iter_t], other.data()[iter_o]);
     }
     return result;
+  }
+
+  template <typename binary>
+  Tensor& apply_binary(binary op, const Tensor& other) {
+    if (!defined() || !other.defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_binary(), tensor has no implementation");
+    }
+    if (requires_grad()) {
+      throw std::runtime_error(
+          "Cannot use inplace stuff on these fuckass tensors");
+    }
+    auto result_shape = broadcast_shape(other.shape());
+    auto shape = impl_->shape_;
+    auto strides = impl_->strides_;
+
+    if (result_shape != shape) {
+      throw std::runtime_error("cannot broadcast in place, asshole");
+    }
+
+    std::vector<std::size_t> strides_o =
+        Tensor::broadcast_strides(result_shape, other.shape(), other.strides());
+
+    if (impl_->storage_.get() == other.impl_->storage_.get()) {
+      std::vector<float> temp_data(size());
+      std::vector<std::size_t> iters;
+      for (std::size_t i = 0; i < size(); ++i) {
+        std::size_t iter_t = impl_->offset_;
+        std::size_t iter_o = other.impl_->offset_;
+        std::size_t remaining = i;
+        for (std::size_t j = 0; j < shape.size(); ++j) {
+          std::size_t cur = remaining / strides[j];
+          remaining -= cur * strides[j];
+          iter_t += cur * strides[j];
+          iter_o += cur * strides_o[j];
+        }
+        temp_data[i] = op(data()[iter_t], other.data()[iter_o]);
+        iters.push_back(iter_t);
+      }
+      for (std::size_t i = 0; i < iters.size(); ++i) {
+        data()[iters[i]] = temp_data[i];
+      }
+    } else {
+      for (std::size_t i = 0; i < size(); ++i) {
+        std::size_t iter_t = impl_->offset_;
+        std::size_t iter_o = other.impl_->offset_;
+        std::size_t remaining = i;
+        for (std::size_t j = 0; j < shape.size(); ++j) {
+          std::size_t cur = remaining / strides[j];
+          remaining -= cur * strides[j];
+          iter_t += cur * strides[j];
+          iter_o += cur * strides_o[j];
+        }
+        data()[iter_t] = op(data()[iter_t], other.data()[iter_o]);
+      }
+    }
+    return *this;
   }
 
   void format_dim(std::stringstream& c, std::size_t cur_dim,
