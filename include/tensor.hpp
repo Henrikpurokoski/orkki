@@ -106,6 +106,9 @@ class Tensor {
   static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
                        float high = 1.0f, bool requires_grad = false);
 
+  static Tensor Eye(const std::vector<std::size_t>& shape,
+                    bool requires_grad = false);
+
   static Tensor String(std::string tensor_string, bool requires_grad = false);
 
   // is defined?

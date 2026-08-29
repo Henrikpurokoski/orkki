@@ -100,6 +100,18 @@ Tensor Tensor::Random(const std::vector<std::size_t>& shape, float low,
   return vec;
 };
 
+Tensor Tensor::Eye(const std::vector<std::size_t>& shape, bool requires_grad) {
+  Tensor result = Zeros(shape, requires_grad);
+  if (!shape.empty()) {
+    auto smallest = std::min_element(shape.begin(), shape.end());
+    for (std::size_t i = 0; i < *smallest; ++i) {
+      auto cur_idx = std::vector<std::size_t>(shape.size(), i);
+      result(cur_idx) = 1;
+    }
+  }
+  return result;
+};
+
 Tensor Tensor::String(std::string tensor_string, bool requires_grad) {
   std::size_t cur = 0;
   std::vector<std::size_t> shape;

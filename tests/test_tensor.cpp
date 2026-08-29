@@ -55,6 +55,17 @@ TEST_CASE("random constructor") {
   }
 }
 
+TEST_CASE("eye constructor") {
+  Tensor t = Tensor::Eye({2, 2});
+  CHECK(t.size() == 4);
+  CHECK(t.shape() == std::vector<std::size_t>{2, 2});
+  CHECK(t.strides() == std::vector<std::size_t>{2, 1});
+  CHECK(t(0, 0) == 1);
+  CHECK(t(0, 1) == 0);
+  CHECK(t(1, 0) == 0);
+  CHECK(t(1, 1) == 1);
+}
+
 TEST_CASE("string constructor") {
   Tensor t = Tensor::String("[[2, 3] ,  [4, 6.0]]");
   CHECK(t.size() == 4);
