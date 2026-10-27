@@ -3,11 +3,13 @@
 #include <cassert>
 #include <memory>
 #include <sstream>
+#include <unordered_set>
 #include <vector>
 
 class TensorImpl;
+class Tensor;
 
-class Node {
+class Node : public std::enable_shared_from_this<Node> {
  public:
   explicit Node(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : children_(children) {}
@@ -15,6 +17,13 @@ class Node {
   virtual ~Node() = default;
 
   std::string info_helper(const std::string& node_type) const;
+
+  const std::vector<std::shared_ptr<const Node>> topo_sort() const;
+
+  void depth_first(std::vector<std::shared_ptr<const Node>>& sorted,
+                   std::unordered_set<const Node*>& visited) const;
+
+  virtual void backward() const;
 
   virtual std::string info() const = 0;
   virtual std::string name() const = 0;

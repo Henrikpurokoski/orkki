@@ -1,5 +1,23 @@
 #include "../include/tensor.hpp"
 
+// tensorimpl backprob
+void TensorImpl::backward(std::shared_ptr<TensorImpl>& grad) {
+  if (grad->requires_grad_) {
+    throw std::runtime_error("Grad cannot required grad");
+  }
+  if (grad->shape_ != shape_) {
+    throw std::runtime_error("Grad has to be the same shape as implementation");
+  }
+  if (requires_grad_) {
+    if (grad_ == nullptr) {
+      grad_ = grad;
+    } else {
+      Tensor(grad_) += Tensor(grad);
+    }
+  }
+  return;
+}
+
 // private constructor
 Tensor::Tensor(const std::vector<std::size_t>& shape, std::vector<float>& data,
                bool requires_grad, const std::shared_ptr<Node> child_node) {
@@ -591,6 +609,29 @@ Tensor Tensor::copy() const {
     node = std::make_shared<CopyNode>(operand);
   }
   return apply_unary([](float x) { return x; }, node);
+}
+
+// FUCK YEAH BACKPROB
+void Tensor::backward() {
+  if (!defined()) {
+    throw std::runtime_error(
+        "Cannot use backward(), tensor has no implementation");
+  }
+  if (!(requires_grad())) {
+    return;
+  }
+  Tensor grad = Ones(impl_->shape_);
+  impl_->backward(grad.impl_);
+
+  if (impl_->child_node_ != nullptr) {
+    auto sorted = impl_->child_node_->topo_sort();
+    std::cout << "runkkari\n\n" << std::endl;
+    for (std::size_t i = 0; i < sorted.size(); ++i) {
+      std::cout << i << ": " << sorted[i]->info() << std::endl;
+      sorted[i]->backward();
+    }
+  }
+  return;
 }
 
 std::string Tensor::show(std::size_t max_k, std::size_t precision) const {

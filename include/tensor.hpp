@@ -74,6 +74,9 @@ struct TensorImpl {
     return std::accumulate(shape_.begin(), shape_.end(), std::size_t{1},
                            std::multiplies<std::size_t>());
   }
+  // Backprob
+  void backward(std::shared_ptr<TensorImpl>& grad);
+
   // constructor
   explicit TensorImpl(const std::shared_ptr<Storage>& storage,
                       const std::vector<std::size_t>& shape,
@@ -91,6 +94,8 @@ struct TensorImpl {
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
 class Tensor {
  public:
+  friend TensorImpl;
+  friend Node;
   // constructors
   Tensor(std::initializer_list<TensorConstructorNode> nodes);
 
@@ -316,6 +321,9 @@ class Tensor {
 
   // copy
   Tensor copy() const;
+
+  // OMG BACKPROPAGATION!!!!
+  void backward();
 
   // info
   std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
