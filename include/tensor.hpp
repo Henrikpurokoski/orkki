@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <cmath>
 #include <functional>
 #include <iomanip>
@@ -10,10 +11,24 @@
 #include <numeric>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
 #include "math_components.hpp"
+#include "node.hpp"
+
+// for constructing tensors
+struct TensorConstructorNode {
+  bool leaf_;
+  float value_;
+  std::vector<TensorConstructorNode> children_;
+
+  TensorConstructorNode(const float value) : value_(value), leaf_(true) {}
+  TensorConstructorNode(
+      const std::initializer_list<TensorConstructorNode>& children)
+      : children_(children), leaf_(false) {}
+};
 
 // a separate storage struct: saves just the tensor data
 struct Storage {
@@ -21,66 +36,173 @@ struct Storage {
   std::vector<float> data_;
 
   // constructoror
-  explicit Storage(const std::size_t size, float value) : data_(size, value) {}
+  explicit Storage(std::vector<float>& data) : data_(data) {}
 };
 
 // tensor implementation: saves tensor metadata and points to a storage struct
 struct TensorImpl {
   // pointer to storage
   std::shared_ptr<Storage> storage_;
+  // pointer to gradient implementation
+  std::shared_ptr<TensorImpl> grad_ = nullptr;
+  // node this tensor is a parent of
+  std::shared_ptr<Node> child_node_;
   // shape of tensor
   const std::vector<std::size_t> shape_;
   // how many slots have to be skipped for each dimension
   const std::vector<std::size_t> strides_;
   // offset for later to use in slicing etc
   const std::size_t offset_ = 0;
+  // requires grad flag
+  bool requires_grad_;
 
   // getters
-  float* data() { return storage_->data_.data(); }
-  const float* data() const { return storage_->data_.data(); }
+  float* data() {
+    if (storage_ == nullptr) {
+      throw std::runtime_error("Cannot use data(), tensor has no storage");
+    }
+    return storage_->data_.data();
+  }
+  const float* data() const {
+    if (storage_ == nullptr) {
+      throw std::runtime_error("Cannot use data(), tensor has no storage");
+    }
+    return storage_->data_.data();
+  }
   std::size_t size() const {
     if (shape_.empty()) return 0;
     return std::accumulate(shape_.begin(), shape_.end(), std::size_t{1},
                            std::multiplies<std::size_t>());
   }
+  // Backprob
+  void backward(std::shared_ptr<TensorImpl>& grad);
+
   // constructor
   explicit TensorImpl(const std::shared_ptr<Storage>& storage,
                       const std::vector<std::size_t>& shape,
                       const std::vector<std::size_t>& strides,
-                      const std::size_t& offset)
-      : storage_(storage), shape_(shape), strides_(strides), offset_(offset) {}
+                      const std::size_t& offset, bool requires_grad,
+                      const std::shared_ptr<Node>& child_node)
+      : storage_(storage),
+        shape_(shape),
+        strides_(strides),
+        offset_(offset),
+        requires_grad_(requires_grad),
+        child_node_(child_node) {}
 };
 
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
 class Tensor {
  public:
-  // four constructors: initiate with zeros, ones, any value and with random
+  friend TensorImpl;
+  friend Node;
+  // constructors
+  Tensor(std::initializer_list<TensorConstructorNode> nodes);
+
+  static Tensor Zeros(const std::vector<std::size_t>& shape,
+                      bool requires_grad = false);
+
+  static Tensor Ones(const std::vector<std::size_t>& shape,
+                     bool requires_grad = false);
+
+  static Tensor Full(const std::vector<std::size_t>& shape, float value,
+                     bool requires_grad = false);
+
   static Tensor Random(const std::vector<std::size_t>& shape, float low = 0.0f,
-                       float high = 1.0f);
-  static Tensor Zeros(const std::vector<std::size_t>& shape);
+                       float high = 1.0f, bool requires_grad = false);
 
-  static Tensor Ones(const std::vector<std::size_t>& shape);
+  static Tensor Eye(const std::vector<std::size_t>& shape,
+                    bool requires_grad = false);
 
-  static Tensor Full(const std::vector<std::size_t>& shape, float value);
+  static Tensor String(std::string tensor_string, bool requires_grad = false);
+
+  // is defined?
+  bool defined() const { return impl_ != nullptr; }
+  explicit operator bool() const { return defined(); }
 
   // getters
   float* data() { return impl_->data(); }
-  const float* data() const { return impl_->data(); }
-  std::size_t size() const { return impl_->size(); }
-  const std::vector<std::size_t>& shape() const { return impl_->shape_; }
-  const std::vector<std::size_t>& strides() const { return impl_->strides_; }
+  const float* data() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use data(), tensor has no implementation");
+    }
+    return impl_->data();
+  }
+  std::size_t size() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use size(), tensor has no implementation");
+    }
+    return impl_->size();
+  }
+  const std::vector<std::size_t>& shape() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use shape(), tensor has no implementation");
+    }
+    return impl_->shape_;
+  }
+  const std::vector<std::size_t>& strides() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use strides(), tensor has no implementation");
+    }
+    return impl_->strides_;
+  }
+  const bool requires_grad() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use requires_grad(), tensor has no implementation");
+    }
+    return impl_->requires_grad_;
+  }
+  const Tensor grad() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use grad(), tensor has no implementation");
+    }
+    return Tensor(impl_->grad_);
+  }
+  const std::shared_ptr<Node>& child_node() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use child_node(), tensor has no implementation");
+    }
+    return impl_->child_node_;
+  }
+
+  // graph checks
+  bool leaf() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use leaf(), tensor has no implementation");
+    }
+    return impl_->child_node_ == nullptr;
+  }
+
+  // set gradient
+  void set_grad(bool grad_bool) const;
 
   // indexing
   template <typename... Args>
   float& operator()(Args... args) {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
     static_assert((std::is_integral_v<Args> && ...));
 
-    assert(sizeof...(args) == impl_->shape_.size());
+    if (sizeof...(args) != impl_->shape_.size()) {
+      throw std::runtime_error("Wrong number of arguments in operator()");
+    }
     std::size_t indices[] = {static_cast<std::size_t>(args)...};
 
     std::size_t flat_index = impl_->offset_;
     for (std::size_t i = 0; i < sizeof...(args); ++i) {
-      assert(indices[i] < static_cast<std::size_t>(impl_->shape_[i]));
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      };
       flat_index += indices[i] * impl_->strides_[i];
     }
     return impl_->storage_->data_[flat_index];
@@ -88,14 +210,58 @@ class Tensor {
 
   template <typename... Args>
   const float& operator()(Args... args) const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
     static_assert((std::is_integral_v<Args> && ...));
 
-    assert(sizeof...(args) == impl_->shape_.size());
+    if (sizeof...(args) != impl_->shape_.size()) {
+      throw std::runtime_error("Wrong number of arguments in operator()");
+    }
     std::size_t indices[] = {static_cast<std::size_t>(args)...};
 
     std::size_t flat_index = impl_->offset_;
     for (std::size_t i = 0; i < sizeof...(args); ++i) {
-      assert(indices[i] < static_cast<std::size_t>(impl_->shape_[i]));
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      }
+      flat_index += indices[i] * impl_->strides_[i];
+    }
+    return impl_->storage_->data_[flat_index];
+  }
+
+  float& operator()(std::vector<std::size_t> indices) {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
+    if (indices.size() != impl_->shape_.size()) {
+      throw std::runtime_error("Wrong number of arguments in operator()");
+    }
+    std::size_t flat_index = impl_->offset_;
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      }
+      flat_index += indices[i] * impl_->strides_[i];
+    }
+    return impl_->storage_->data_[flat_index];
+  }
+
+  const float& operator()(std::vector<std::size_t> indices) const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
+    if (indices.size() != impl_->shape_.size()) {
+      throw std::runtime_error("Wrong number of arguments in operator()");
+    }
+    std::size_t flat_index = impl_->offset_;
+    for (std::size_t i = 0; i < indices.size(); ++i) {
+      if (!(indices[i] < static_cast<std::size_t>(impl_->shape_[i]))) {
+        throw std::runtime_error("index out of bounds in operator()");
+      }
       flat_index += indices[i] * impl_->strides_[i];
     }
     return impl_->storage_->data_[flat_index];
@@ -107,11 +273,21 @@ class Tensor {
   Tensor operator*(const Tensor& other) const;
   Tensor operator/(const Tensor& other) const;
 
+  Tensor& operator+=(const Tensor& other);
+  Tensor& operator-=(const Tensor& other);
+  Tensor& operator*=(const Tensor& other);
+  Tensor& operator/=(const Tensor& other);
+
   // scalar arithmetic
   Tensor operator+(const float scalar) const;
   Tensor operator-(const float scalar) const;
   Tensor operator*(const float scalar) const;
   Tensor operator/(const float scalar) const;
+
+  Tensor& operator+=(const float scalar);
+  Tensor& operator-=(const float scalar);
+  Tensor& operator*=(const float scalar);
+  Tensor& operator/=(const float scalar);
 
   // reductions
   Tensor sum() const;
@@ -119,13 +295,20 @@ class Tensor {
   Tensor max() const;
   Tensor min() const;
 
-  // unary activations
+  // unary operations
   Tensor relu() const;
   Tensor sigmoid() const;
   Tensor exp() const;
   Tensor log() const;
   Tensor sqrt() const;
   Tensor abs() const;
+
+  Tensor& relu();
+  Tensor& sigmoid();
+  Tensor& exp();
+  Tensor& log();
+  Tensor& sqrt();
+  Tensor& abs();
 
   // matrix multiplication
   Tensor matmul(const Tensor& other) const;
@@ -139,27 +322,47 @@ class Tensor {
   // copy
   Tensor copy() const;
 
-  // string
-  std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
+  // OMG BACKPROPAGATION!!!!
+  void backward();
 
   // info
+  std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
   std::string info() const;
+  std::string child_info() const;
+  std::string tree() const;
 
  private:
-  // basic constructor
+  // constructor
   explicit Tensor(const std::shared_ptr<TensorImpl> impl) : impl_(impl) {}
 
   // overloaded constructor for ease of life
-  explicit Tensor(const std::vector<std::size_t>& shape, float value);
+  explicit Tensor(const std::vector<std::size_t>& shape,
+                  std::vector<float>& data, bool requires_grad = false,
+                  const std::shared_ptr<Node> child_node = nullptr);
+
+  explicit Tensor(const std::vector<std::size_t>& shape, float value,
+                  bool requires_grad = false,
+                  const std::shared_ptr<Node> child_node = nullptr);
+
   // pointer to implementation
   std::shared_ptr<TensorImpl> impl_;
 
+  // set as a parent of a node if exists
+  void set_parent(const std::shared_ptr<Node>& node) const;
+
   // apply unary operator
   template <typename unary>
-  Tensor apply_unary(unary op) const {
+  Tensor apply_unary(unary op, const std::shared_ptr<Node>& node) const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_unary(), tensor has no implementation");
+    }
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
-    Tensor result(shape, 0.0f);
+    bool requires_grad = impl_->requires_grad_;
+
+    Tensor result(shape, 0.0f, requires_grad, node);
+    result.set_parent(node);
 
     for (std::size_t i = 0; i < result.size(); ++i) {
       std::size_t iter_t = impl_->offset_;
@@ -169,13 +372,42 @@ class Tensor {
         remaining -= cur * result.strides()[j];
         iter_t += cur * strides[j];
       }
-      result.data()[i] = op((*this).data()[iter_t]);
+      result.data()[i] = op(data()[iter_t]);
     }
     return result;
+  }
+  template <typename unary>
+  Tensor& apply_unary(unary op) {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_unary(), tensor has no implementation");
+    }
+    if (requires_grad()) {
+      throw std::runtime_error(
+          "Cannot use inplace stuff on these fuckass tensors");
+    }
+    auto shape = impl_->shape_;
+    auto strides = impl_->strides_;
+
+    for (std::size_t i = 0; i < size(); ++i) {
+      std::size_t iter_t = impl_->offset_;
+      std::size_t remaining = i;
+      for (std::size_t j = 0; j < shape.size(); ++j) {
+        std::size_t cur = remaining / strides[j];
+        remaining -= cur * strides[j];
+        iter_t += cur * strides[j];
+      }
+      data()[iter_t] = op(data()[iter_t]);
+    }
+    return *this;
   }
   // apply accumulation (usually returns 0d tensor)
   template <typename Reducer>
   auto apply_accumulate(Reducer reducer) const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_accumulate(), tensor has no implementation");
+    }
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
 
@@ -186,7 +418,7 @@ class Tensor {
       current_stride *= shape[ii];
     }
 
-    for (std::size_t i = 0; i < (*this).size(); ++i) {
+    for (std::size_t i = 0; i < size(); ++i) {
       std::size_t iter_t = impl_->offset_;
       std::size_t remaining = i;
       for (std::size_t j = 0; j < shape.size(); ++j) {
@@ -194,9 +426,9 @@ class Tensor {
         remaining -= cur * temp_strides[j];
         iter_t += cur * strides[j];
       }
-      reducer.update((*this).data()[iter_t]);
+      reducer.update(data()[iter_t]);
     }
-    return reducer.finalize((*this).size());
+    return reducer.finalize(size());
   }
 
   // apply binary operator (broadcast)
@@ -209,13 +441,20 @@ class Tensor {
       const std::vector<std::size_t>& strides);
 
   template <typename binary>
-  Tensor apply_binary(binary op, const Tensor& other) const {
-    auto result_shape = (*this).broadcast_shape(other.shape());
+  Tensor apply_binary(binary op, const Tensor& other,
+                      const std::shared_ptr<Node>& node) const {
+    if (!defined() || !other.defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_binary(), tensor has no implementation");
+    }
+    auto result_shape = broadcast_shape(other.shape());
+    bool requires_grad = impl_->requires_grad_;
 
-    Tensor result(result_shape, 0.0f);
+    Tensor result(result_shape, 0.0f, requires_grad, node);
+    result.set_parent(node);
 
-    std::vector<std::size_t> strides_t = Tensor::broadcast_strides(
-        result_shape, (*this).shape(), (*this).strides());
+    std::vector<std::size_t> strides_t =
+        Tensor::broadcast_strides(result_shape, shape(), strides());
     std::vector<std::size_t> strides_o =
         Tensor::broadcast_strides(result_shape, other.shape(), other.strides());
 
@@ -229,11 +468,78 @@ class Tensor {
         iter_t += cur * strides_t[j];
         iter_o += cur * strides_o[j];
       }
-      result.data()[i] = op((*this).data()[iter_t], other.data()[iter_o]);
+      result.data()[i] = op(data()[iter_t], other.data()[iter_o]);
     }
     return result;
   }
 
+  template <typename binary>
+  Tensor& apply_binary(binary op, const Tensor& other) {
+    if (!defined() || !other.defined()) {
+      throw std::runtime_error(
+          "Cannot use apply_binary(), tensor has no implementation");
+    }
+    if (requires_grad()) {
+      throw std::runtime_error(
+          "Cannot use inplace stuff on these fuckass tensors");
+    }
+    auto result_shape = broadcast_shape(other.shape());
+    auto shape = impl_->shape_;
+    auto strides = impl_->strides_;
+
+    if (result_shape != shape) {
+      throw std::runtime_error("cannot broadcast in place, asshole");
+    }
+
+    std::vector<std::size_t> strides_o =
+        Tensor::broadcast_strides(result_shape, other.shape(), other.strides());
+
+    if (impl_->storage_.get() == other.impl_->storage_.get()) {
+      std::vector<float> temp_data(size());
+      std::vector<std::size_t> iters;
+      for (std::size_t i = 0; i < size(); ++i) {
+        std::size_t iter_t = impl_->offset_;
+        std::size_t iter_o = other.impl_->offset_;
+        std::size_t remaining = i;
+        for (std::size_t j = 0; j < shape.size(); ++j) {
+          std::size_t cur = remaining / strides[j];
+          remaining -= cur * strides[j];
+          iter_t += cur * strides[j];
+          iter_o += cur * strides_o[j];
+        }
+        temp_data[i] = op(data()[iter_t], other.data()[iter_o]);
+        iters.push_back(iter_t);
+      }
+      for (std::size_t i = 0; i < iters.size(); ++i) {
+        data()[iters[i]] = temp_data[i];
+      }
+    } else {
+      for (std::size_t i = 0; i < size(); ++i) {
+        std::size_t iter_t = impl_->offset_;
+        std::size_t iter_o = other.impl_->offset_;
+        std::size_t remaining = i;
+        for (std::size_t j = 0; j < shape.size(); ++j) {
+          std::size_t cur = remaining / strides[j];
+          remaining -= cur * strides[j];
+          iter_t += cur * strides[j];
+          iter_o += cur * strides_o[j];
+        }
+        data()[iter_t] = op(data()[iter_t], other.data()[iter_o]);
+      }
+    }
+    return *this;
+  }
+
   void format_dim(std::stringstream& c, std::size_t cur_dim,
                   std::vector<std::size_t>& cur_idx, std::size_t k) const;
+
+  static std::size_t parse_string(std::string& s, std::size_t& cursor,
+                                  std::size_t depth,
+                                  std::vector<std::size_t>& shape,
+                                  std::vector<float>& data);
+
+  static std::size_t parse_constructor_tree(TensorConstructorNode& cur,
+                                            std::size_t depth,
+                                            std::vector<std::size_t>& shape,
+                                            std::vector<float>& data);
 };
