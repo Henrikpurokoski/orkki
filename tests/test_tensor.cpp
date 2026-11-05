@@ -539,7 +539,7 @@ TEST_CASE("relu inplace") {
   t(0, 0) = 1;
   t(0, 1) = -1;
 
-  t.relu();
+  t.relu_();
 
   CHECK(t(0, 0) == 1);
   CHECK(t(0, 1) == 0);
@@ -551,7 +551,7 @@ TEST_CASE("sigmoid inplace") {
   t(0, 0) = 0;
   t(0, 1) = 1;
 
-  t.sigmoid();
+  t.sigmoid_();
 
   CHECK(t(0, 0) == 0.5);
   CHECK(t(0, 1) < 1);
@@ -563,7 +563,7 @@ TEST_CASE("exp inplace") {
   t(0, 0) = 0;
   t(0, 1) = 1;
 
-  t.exp();
+  t.exp_();
 
   CHECK(t(0, 0) == 1);
   CHECK(t(0, 1) > 1);
@@ -575,7 +575,7 @@ TEST_CASE("log inplace") {
   t(0, 0) = 1;
   t(0, 1) = 10;
 
-  t.log();
+  t.log_();
 
   CHECK(t(0, 0) == 0);
   CHECK(t(0, 1) < 10);
@@ -587,7 +587,7 @@ TEST_CASE("sqrt inplace") {
   t(0, 0) = 4;
   t(0, 1) = 16;
 
-  t.sqrt();
+  t.sqrt_();
 
   CHECK(t(0, 0) == 2);
   CHECK(t(0, 1) == 4);
@@ -599,7 +599,7 @@ TEST_CASE("abs inplace") {
   t(0, 0) = 4;
   t(0, 1) = -4;
 
-  t.abs();
+  t.abs_();
 
   CHECK(t(0, 0) == 4);
   CHECK(t(0, 1) == 4);

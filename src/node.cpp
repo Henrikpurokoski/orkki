@@ -48,7 +48,54 @@ void Node::depth_first(std::vector<std::shared_ptr<const Node>>& sorted,
 void Node::backward() const {
   for (std::size_t i = 0; i < children_.size(); ++i) {
     Tensor init_grad = Tensor::Zeros(children_[i]->shape_);
-    children_[i]->backward(init_grad.impl_);
+    auto grad_impl = init_grad.impl();
+    children_[i]->backward(grad_impl);
   }
   return;
 }
+
+// void AddNode::backward() const {}
+
+// void SubNode::backward() const {}
+
+// void MulNode::backward() const {}
+
+// void DivNode::backward() const {}
+
+// void SumNode::backward() const {}
+
+// void MeanNode::backward() const {}
+
+// void MaxNode::backward() const {}
+
+// void MinNode::backward() const {}
+
+// void ReluNode::backward() const {}
+
+// void SigmaNode::backward() const {}
+
+// void ExpNode::backward() const {}
+
+// void LogNode::backward() const {}
+
+// void SqrtNode::backward() const {}
+
+// void AbsNode::backward() const {}
+
+void CopyNode::backward() const {
+  for (std::size_t i = 0; i < children_.size(); ++i) {
+    std::shared_ptr<TensorImpl> init_grad = nullptr;
+    if (auto strong = parent_.lock()) {
+      auto init_grad = strong->grad_;
+    } else {
+      throw std::runtime_error("what no parent :(");
+    }
+    children_[i]->backward(init_grad);
+  }
+}
+
+void TransNode::backward() const { return; }
+
+void SliceNode::backward() const { return; }
+
+// void MatmulNode::backward() const {}

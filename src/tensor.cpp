@@ -1,5 +1,36 @@
 #include "../include/tensor.hpp"
 
+TensorImpl::TensorImpl(const std::shared_ptr<Storage>& storage,
+                       const std::vector<std::size_t>& shape,
+                       const std::vector<std::size_t>& strides,
+                       const std::size_t& offset, bool requires_grad,
+                       const std::shared_ptr<Node>& child_node, bool is_view,
+                       const std::shared_ptr<Storage>& grad_storage)
+    : storage_(storage),
+      shape_(shape),
+      strides_(strides),
+      offset_(offset),
+      requires_grad_(requires_grad),
+      child_node_(child_node),
+      is_view_(is_view) {
+  if (requires_grad_) {
+    if (is_view_ && grad_storage == nullptr) {
+      throw std::runtime_error(
+          "views requiring gradient have to have a set gradient storage");
+    }
+    if (is_view_) {
+      grad_ = std::make_shared<TensorImpl>(grad_storage, shape_, strides_,
+                                           offset_, false, nullptr);
+    } else {
+      std::size_t grad_size = storage_->data_.size();
+      std::vector<float> grad_data(grad_size, 0.0f);
+      auto new_grad_storage = std::make_shared<Storage>(grad_data);
+      grad_ = std::make_shared<TensorImpl>(new_grad_storage, shape_, strides_,
+                                           offset_, false, nullptr);
+    }
+  }
+}
+
 // tensorimpl backprob
 void TensorImpl::backward(std::shared_ptr<TensorImpl>& grad) {
   if (grad->requires_grad_) {
@@ -10,10 +41,26 @@ void TensorImpl::backward(std::shared_ptr<TensorImpl>& grad) {
   }
   if (requires_grad_) {
     if (grad_ == nullptr) {
-      grad_ = grad;
+      throw std::runtime_error("unexpected nullptr gradient");
     } else {
       Tensor(grad_) += Tensor(grad);
     }
+  }
+  return;
+}
+
+void TensorImpl::set_grad(bool grad_flag) {
+  if (is_view_) {
+    throw std::runtime_error("cannot change gradient flag for views");
+  }
+  if (grad_ == nullptr && grad_flag) {
+    std::size_t grad_size = storage_->data_.size();
+    std::vector<float> grad_data(grad_size, 0.0f);
+    auto new_grad_storage = std::make_shared<Storage>(grad_data);
+    grad_ = std::make_shared<TensorImpl>(new_grad_storage, shape_, strides_,
+                                         offset_, false, nullptr);
+  } else if (!grad_flag) {
+    grad_ = nullptr;
   }
   return;
 }
@@ -151,6 +198,7 @@ Tensor Tensor::String(std::string tensor_string, bool requires_grad) {
 void Tensor::set_grad(bool grad_bool) const {
   if (impl_->child_node_ == nullptr) {
     impl_->requires_grad_ = grad_bool;
+    impl_->set_grad(grad_bool);
   } else {
     throw std::runtime_error(
         "Cannot change gradient requirements for a branch tensor!");
@@ -380,6 +428,7 @@ Tensor Tensor::relu() const {
 }
 
 Tensor Tensor::sigmoid() const {
+  std::cout << "we are in sigmoid" << std::endl;
   if (!defined()) {
     throw std::runtime_error(
         "Cannot use sigmoid(), tensor has no implementation");
@@ -446,14 +495,14 @@ Tensor Tensor::abs() const {
   return apply_unary([](float x) { return std::abs(x); }, node);
 }
 
-Tensor& Tensor::relu() {
+Tensor& Tensor::relu_() {
   if (!defined()) {
     throw std::runtime_error("Cannot use relu(), tensor has no implementation");
   }
   return apply_unary([](float x) { return std::max(0.0f, x); });
 }
 
-Tensor& Tensor::sigmoid() {
+Tensor& Tensor::sigmoid_() {
   if (!defined()) {
     throw std::runtime_error(
         "Cannot use sigmoid(), tensor has no implementation");
@@ -461,28 +510,28 @@ Tensor& Tensor::sigmoid() {
   return apply_unary([](float x) { return 1.0f / (1.0f + std::exp(-x)); });
 }
 
-Tensor& Tensor::exp() {
+Tensor& Tensor::exp_() {
   if (!defined()) {
     throw std::runtime_error("Cannot use exp(), tensor has no implementation");
   }
   return apply_unary([](float x) { return std::exp(x); });
 }
 
-Tensor& Tensor::log() {
+Tensor& Tensor::log_() {
   if (!defined()) {
     throw std::runtime_error("Cannot use log(), tensor has no implementation");
   }
   return apply_unary([](float x) { return std::log(x); });
 }
 
-Tensor& Tensor::sqrt() {
+Tensor& Tensor::sqrt_() {
   if (!defined()) {
     throw std::runtime_error("Cannot use sqrt(), tensor has no implementation");
   }
   return apply_unary([](float x) { return std::sqrt(x); });
 }
 
-Tensor& Tensor::abs() {
+Tensor& Tensor::abs_() {
   if (!defined()) {
     throw std::runtime_error("Cannot use abs(), tensor has no implementation");
   }
@@ -545,6 +594,7 @@ Tensor Tensor::transpose() const {
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
   auto requires_grad = impl_->requires_grad_;
+  auto grad_storage = requires_grad ? impl_->grad_->storage_ : nullptr;
   std::shared_ptr<Node> node = nullptr;
 
   if (requires_grad) {
@@ -554,8 +604,8 @@ Tensor Tensor::transpose() const {
 
   std::reverse(shape.begin(), shape.end());
   std::reverse(strides.begin(), strides.end());
-  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
-                                           requires_grad, node);
+  auto impl = std::make_shared<TensorImpl>(
+      storage, shape, strides, offset, requires_grad, node, true, grad_storage);
   Tensor result(impl);
   result.set_parent(node);
   return result;
@@ -572,6 +622,7 @@ Tensor Tensor::slice(
   auto strides = impl_->strides_;
   auto offset = impl_->offset_;
   auto requires_grad = impl_->requires_grad_;
+  auto grad_storage = requires_grad ? impl_->grad_->storage_ : nullptr;
   std::shared_ptr<Node> node = nullptr;
 
   if (requires_grad) {
@@ -591,8 +642,8 @@ Tensor Tensor::slice(
     shape[i] = new_shape;
     offset += first * strides[i];
   }
-  auto impl = std::make_shared<TensorImpl>(storage, shape, strides, offset,
-                                           requires_grad, node);
+  auto impl = std::make_shared<TensorImpl>(
+      storage, shape, strides, offset, requires_grad, node, true, grad_storage);
   Tensor result(impl);
   result.set_parent(node);
   return result;

@@ -55,6 +55,17 @@ struct TensorImpl {
   const std::size_t offset_ = 0;
   // requires grad flag
   bool requires_grad_;
+  // is this a view of another tensor?
+  bool is_view_;
+
+  // constructor
+  explicit TensorImpl(const std::shared_ptr<Storage>& storage,
+                      const std::vector<std::size_t>& shape,
+                      const std::vector<std::size_t>& strides,
+                      const std::size_t& offset, bool requires_grad,
+                      const std::shared_ptr<Node>& child_node,
+                      bool is_view = false,
+                      const std::shared_ptr<Storage>& grad_storage = nullptr);
 
   // getters
   float* data() {
@@ -74,21 +85,12 @@ struct TensorImpl {
     return std::accumulate(shape_.begin(), shape_.end(), std::size_t{1},
                            std::multiplies<std::size_t>());
   }
+
   // Backprob
   void backward(std::shared_ptr<TensorImpl>& grad);
 
-  // constructor
-  explicit TensorImpl(const std::shared_ptr<Storage>& storage,
-                      const std::vector<std::size_t>& shape,
-                      const std::vector<std::size_t>& strides,
-                      const std::size_t& offset, bool requires_grad,
-                      const std::shared_ptr<Node>& child_node)
-      : storage_(storage),
-        shape_(shape),
-        strides_(strides),
-        offset_(offset),
-        requires_grad_(requires_grad),
-        child_node_(child_node) {}
+  // Gradient helper
+  void set_grad(bool grad_flag);
 };
 
 // tensor class: API for tensor impl. Only stores a pointer to a tensor impl
@@ -121,7 +123,20 @@ class Tensor {
   explicit operator bool() const { return defined(); }
 
   // getters
-  float* data() { return impl_->data(); }
+  const std::shared_ptr<TensorImpl> impl() const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use size(), tensor has no implementation");
+    }
+    return impl_;
+  }
+  float* data() {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use data(), tensor has no implementation");
+    }
+    return impl_->data();
+  }
   const float* data() const {
     if (!defined()) {
       throw std::runtime_error(
@@ -303,12 +318,12 @@ class Tensor {
   Tensor sqrt() const;
   Tensor abs() const;
 
-  Tensor& relu();
-  Tensor& sigmoid();
-  Tensor& exp();
-  Tensor& log();
-  Tensor& sqrt();
-  Tensor& abs();
+  Tensor& relu_();
+  Tensor& sigmoid_();
+  Tensor& exp_();
+  Tensor& log_();
+  Tensor& sqrt_();
+  Tensor& abs_();
 
   // matrix multiplication
   Tensor matmul(const Tensor& other) const;
