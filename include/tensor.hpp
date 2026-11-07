@@ -328,6 +328,9 @@ class Tensor {
   // matrix multiplication
   Tensor matmul(const Tensor& other) const;
 
+  // view
+  Tensor view() const;
+
   // transpose
   Tensor transpose() const;
 
@@ -505,7 +508,16 @@ class Tensor {
     if (result_shape != shape) {
       throw std::runtime_error("cannot broadcast in place, asshole");
     }
+    std::vector<std::size_t> real_strides(shape.size(), 0);
 
+    std::size_t current_stride = 1;
+    for (std::size_t i = shape.size(); i-- > 0;) {
+      real_strides[i] = current_stride;
+      current_stride *= shape[i];
+    }
+
+    std::vector<std::size_t> strides_t =
+        Tensor::broadcast_strides(result_shape, shape, strides);
     std::vector<std::size_t> strides_o =
         Tensor::broadcast_strides(result_shape, other.shape(), other.strides());
 
@@ -517,9 +529,9 @@ class Tensor {
         std::size_t iter_o = other.impl_->offset_;
         std::size_t remaining = i;
         for (std::size_t j = 0; j < shape.size(); ++j) {
-          std::size_t cur = remaining / strides[j];
-          remaining -= cur * strides[j];
-          iter_t += cur * strides[j];
+          std::size_t cur = remaining / real_strides[j];
+          remaining -= cur * real_strides[j];
+          iter_t += cur * strides_t[j];
           iter_o += cur * strides_o[j];
         }
         temp_data[i] = op(data()[iter_t], other.data()[iter_o]);
@@ -534,9 +546,9 @@ class Tensor {
         std::size_t iter_o = other.impl_->offset_;
         std::size_t remaining = i;
         for (std::size_t j = 0; j < shape.size(); ++j) {
-          std::size_t cur = remaining / strides[j];
-          remaining -= cur * strides[j];
-          iter_t += cur * strides[j];
+          std::size_t cur = remaining / real_strides[j];
+          remaining -= cur * real_strides[j];
+          iter_t += cur * strides_t[j];
           iter_o += cur * strides_o[j];
         }
         data()[iter_t] = op(data()[iter_t], other.data()[iter_o]);

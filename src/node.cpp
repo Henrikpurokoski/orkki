@@ -86,13 +86,15 @@ void CopyNode::backward() const {
   for (std::size_t i = 0; i < children_.size(); ++i) {
     std::shared_ptr<TensorImpl> init_grad = nullptr;
     if (auto strong = parent_.lock()) {
-      auto init_grad = strong->grad_;
+      init_grad = strong->grad_;
     } else {
       throw std::runtime_error("what no parent :(");
     }
     children_[i]->backward(init_grad);
   }
 }
+
+void ViewNode::backward() const { return; }
 
 void TransNode::backward() const { return; }
 

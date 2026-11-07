@@ -210,6 +210,17 @@ class CopyNode : public Node {
 
 // transformations
 
+class ViewNode : public Node {
+ public:
+  ViewNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  void backward() const override;
+
+  std::string name() const override { return "ViewNode"; }
+  std::string info() const override { return info_helper(name()); }
+};
+
 class TransNode : public Node {
  public:
   TransNode(const std::vector<std::shared_ptr<TensorImpl>>& children)

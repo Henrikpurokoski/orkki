@@ -428,7 +428,6 @@ Tensor Tensor::relu() const {
 }
 
 Tensor Tensor::sigmoid() const {
-  std::cout << "we are in sigmoid" << std::endl;
   if (!defined()) {
     throw std::runtime_error(
         "Cannot use sigmoid(), tensor has no implementation");
@@ -583,6 +582,30 @@ Tensor Tensor::matmul(const Tensor& other) const {
   return result;
 }
 
+// view
+Tensor Tensor::view() const {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use view, tensor has no implementation");
+  }
+  auto storage = impl_->storage_;
+  auto shape = impl_->shape_;
+  auto strides = impl_->strides_;
+  auto offset = impl_->offset_;
+  auto requires_grad = impl_->requires_grad_;
+  auto grad_storage = requires_grad ? impl_->grad_->storage_ : nullptr;
+  std::shared_ptr<Node> node = nullptr;
+
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<ViewNode>(operand);
+  }
+  auto impl = std::make_shared<TensorImpl>(
+      storage, shape, strides, offset, requires_grad, node, true, grad_storage);
+  Tensor result(impl);
+  result.set_parent(node);
+  return result;
+}
+
 // transpose
 Tensor Tensor::transpose() const {
   if (!defined()) {
@@ -676,9 +699,7 @@ void Tensor::backward() {
 
   if (impl_->child_node_ != nullptr) {
     auto sorted = impl_->child_node_->topo_sort();
-    std::cout << "runkkari\n\n" << std::endl;
-    for (std::size_t i = 0; i < sorted.size(); ++i) {
-      std::cout << i << ": " << sorted[i]->info() << std::endl;
+    for (std::size_t i = sorted.size() - 1; i + 1 > 0; --i) {
       sorted[i]->backward();
     }
   }
