@@ -340,6 +340,9 @@ class Tensor {
   // copy
   Tensor copy() const;
 
+  // reduce shape
+  Tensor reduce(const std::vector<std::size_t> reduced_shape) const;
+
   // OMG BACKPROPAGATION!!!!
   void backward();
 
@@ -556,6 +559,8 @@ class Tensor {
     }
     return *this;
   }
+  void reduce_helper(std::size_t iter_t, std::size_t cur_dim_iter,
+                     std::vector<std::size_t> reduced_dims, float& acc) const;
 
   void format_dim(std::stringstream& c, std::size_t cur_dim,
                   std::vector<std::size_t>& cur_idx, std::size_t k) const;

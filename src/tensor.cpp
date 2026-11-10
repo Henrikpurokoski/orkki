@@ -685,6 +685,62 @@ Tensor Tensor::copy() const {
   return apply_unary([](float x) { return x; }, node);
 }
 
+Tensor Tensor::reduce(std::vector<std::size_t> reduced_shape) const {
+  if (!defined()) {
+    throw std::runtime_error("Cannot use reduce, tensor has no implementation");
+  }
+  auto shape = impl_->shape_;
+  auto offset = impl_->offset_;
+  auto strides = impl_->strides_;
+  auto data = impl_->storage_->data_;
+  auto diff =
+      static_cast<int>(shape.size()) - static_cast<int>(reduced_shape.size());
+  if (diff < 0) {
+    throw std::runtime_error("reduced shape cant be higher dim!!");
+  }
+  std::vector<std::size_t> padded_shape(shape.size());
+  std::vector<std::size_t> reduced_dims;
+  for (std::size_t i = 0; i < shape.size(); ++i) {
+    if (i < diff) {
+      padded_shape[i] = 1;
+      reduced_dims.push_back(i);
+    } else {
+      if (reduced_shape[i - diff] == 1 && reduced_shape[i - diff] != shape[i]) {
+        reduced_dims.push_back(i);
+      } else if (reduced_shape[i - diff] != shape[i]) {
+        throw std::runtime_error("unreduceable shape!!");
+      }
+      padded_shape[i] = reduced_shape[i - diff];
+    }
+  }
+  Tensor result(reduced_shape, 0.0f);
+
+  std::vector<std::size_t> temp_strides(padded_shape.size());
+  std::size_t current_stride = 1;
+  for (std::size_t ii = padded_shape.size(); ii-- > 0;) {
+    temp_strides[ii] = current_stride;
+    current_stride *= padded_shape[ii];
+  }
+
+  for (std::size_t i = 0; i < result.size(); ++i) {
+    std::size_t iter_t = offset;
+    std::size_t remaining = i;
+    for (std::size_t j = 0; j < padded_shape.size(); ++j) {
+      auto cur = remaining / temp_strides[j];
+      remaining -= cur * temp_strides[j];
+      iter_t += cur * strides[j];
+    }
+    if (reduced_dims.size() == 0) {
+      result.data()[i] = data[iter_t];
+    } else {
+      float acc = 0.0f;
+      reduce_helper(iter_t, 0, reduced_dims, acc);
+      result.data()[i] = acc;
+    }
+  }
+  return result;
+}
+
 // FUCK YEAH BACKPROB
 void Tensor::backward() {
   if (!defined()) {
@@ -839,6 +895,30 @@ const std::vector<std::size_t> Tensor::broadcast_strides(
       result[i] = 0;
   }
   return result;
+}
+
+void Tensor::reduce_helper(std::size_t iter_t, std::size_t cur_dim_iter,
+                           std::vector<std::size_t> reduced_dims,
+                           float& acc) const {
+  auto shape = impl_->shape_;
+  auto strides = impl_->strides_;
+  auto offset = impl_->offset_;
+  auto data = impl_->storage_->data_;
+  if (cur_dim_iter == reduced_dims.size() - 1) {
+    auto cur_dim = reduced_dims[cur_dim_iter];
+    for (std::size_t i = 0; i < shape[cur_dim]; ++i) {
+      acc += data[iter_t];
+      iter_t += strides[cur_dim];
+    }
+  } else if (cur_dim_iter < reduced_dims.size() - 1) {
+    auto cur_dim = reduced_dims[cur_dim_iter];
+    for (std::size_t i = 0; i < shape[cur_dim]; ++i) {
+      reduce_helper(iter_t, cur_dim_iter + 1, reduced_dims, acc);
+      iter_t += strides[cur_dim];
+    }
+  } else {
+    throw std::runtime_error("how did we get here");
+  }
 }
 
 void Tensor::format_dim(std::stringstream& c, std::size_t cur_dim,
