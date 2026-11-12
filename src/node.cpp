@@ -45,22 +45,98 @@ void Node::depth_first(std::vector<std::shared_ptr<const Node>>& sorted,
   return;
 }
 
-void Node::backward() const {
-  for (std::size_t i = 0; i < children_.size(); ++i) {
-    Tensor init_grad = Tensor::Zeros(children_[i]->shape_);
-    auto grad_impl = init_grad.impl();
-    children_[i]->backward(grad_impl);
+void Node::backward() const { return; }
+
+void AddNode::backward() const {
+  if (children_.size() != 2) {
+    throw std::runtime_error("wrong number of children in Add!");
   }
-  return;
+  std::shared_ptr<TensorImpl> init_grad_impl = nullptr;
+  if (auto strong = parent_.lock()) {
+    init_grad_impl = strong->grad_;
+  } else {
+    throw std::runtime_error("what no parent :(");
+  }
+  auto init_grad = Tensor::From_impl(init_grad_impl);
+  for (std::size_t i = 0; i < children_.size(); ++i) {
+    auto grad_shape = children_[i]->shape_;
+    Tensor grad = init_grad.reduce(grad_shape);
+    children_[i]->backward(grad.impl());
+  }
 }
 
-// void AddNode::backward() const {}
+void SubNode::backward() const {
+  if (children_.size() != 2) {
+    throw std::runtime_error("wrong number of children in Sub!");
+  }
+  std::shared_ptr<TensorImpl> init_grad_impl = nullptr;
+  if (auto strong = parent_.lock()) {
+    init_grad_impl = strong->grad_;
+  } else {
+    throw std::runtime_error("what no parent :(");
+  }
+  auto init_grad = Tensor::From_impl(init_grad_impl);
+  for (std::size_t i = 0; i < children_.size(); ++i) {
+    auto grad_shape = children_[i]->shape_;
+    Tensor grad = (i == 0) ? init_grad.reduce(grad_shape)
+                           : (init_grad * -1).reduce(grad_shape);
+    children_[i]->backward(grad.impl());
+  }
+}
 
-// void SubNode::backward() const {}
+void MulNode::backward() const {
+  if (children_.size() != 2) {
+    throw std::runtime_error("wrong number of children in Mul!");
+  }
+  std::shared_ptr<TensorImpl> init_grad_impl = nullptr;
+  if (auto strong = parent_.lock()) {
+    init_grad_impl = strong->grad_;
+  } else {
+    throw std::runtime_error("what no parent :(");
+  }
+  auto init_grad = Tensor::From_impl(init_grad_impl);
+  auto other_idx = children_.size() - 1;
+  for (std::size_t i = 0; i < children_.size(); ++i) {
+    auto other = Tensor::From_impl(children_[other_idx]);
+    other.infect(false);
+    auto grad_shape = children_[i]->shape_;
 
-// void MulNode::backward() const {}
+    Tensor grad = (init_grad * other).reduce(grad_shape);
+    children_[i]->backward(grad.impl());
+    other.infect(true);
+    other_idx -= 1;
+  }
+}
 
-// void DivNode::backward() const {}
+void DivNode::backward() const {
+  if (children_.size() != 2) {
+    throw std::runtime_error("wrong number of children in Div!");
+  }
+  std::shared_ptr<TensorImpl> init_grad_impl = nullptr;
+  if (auto strong = parent_.lock()) {
+    init_grad_impl = strong->grad_;
+  } else {
+    throw std::runtime_error("what no parent :(");
+  }
+  auto init_grad = Tensor::From_impl(init_grad_impl);
+  auto other_idx = children_.size() - 1;
+  for (std::size_t i = 0; i < children_.size(); ++i) {
+    auto other = Tensor::From_impl(children_[other_idx]);
+    auto thiss = Tensor::From_impl(children_[i]);
+    other.infect(false);
+    thiss.infect(false);
+    auto grad_shape = children_[i]->shape_;
+
+    Tensor grad =
+        (i == 0)
+            ? (init_grad / other).reduce(grad_shape)
+            : (init_grad * (other / (thiss * thiss)) * -1).reduce(grad_shape);
+    children_[i]->backward(grad.impl());
+    other.infect(true);
+    thiss.infect(true);
+    other_idx -= 1;
+  }
+}
 
 // void SumNode::backward() const {}
 
@@ -83,15 +159,16 @@ void Node::backward() const {
 // void AbsNode::backward() const {}
 
 void CopyNode::backward() const {
-  for (std::size_t i = 0; i < children_.size(); ++i) {
-    std::shared_ptr<TensorImpl> init_grad = nullptr;
-    if (auto strong = parent_.lock()) {
-      init_grad = strong->grad_;
-    } else {
-      throw std::runtime_error("what no parent :(");
-    }
-    children_[i]->backward(init_grad);
+  if (children_.size() != 1) {
+    throw std::runtime_error("wrong number of children in Copy!");
   }
+  std::shared_ptr<TensorImpl> init_grad = nullptr;
+  if (auto strong = parent_.lock()) {
+    init_grad = strong->grad_;
+  } else {
+    throw std::runtime_error("what no parent :(");
+  }
+  children_[0]->backward(init_grad);
 }
 
 void ViewNode::backward() const { return; }

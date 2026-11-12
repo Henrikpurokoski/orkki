@@ -47,7 +47,7 @@ class AddNode : public Node {
   AddNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  // void backward() const override;
+  void backward() const override;
 
   std::string name() const override { return "AddNode"; }
   std::string info() const override { return info_helper(name()); }
@@ -58,7 +58,7 @@ class SubNode : public Node {
   SubNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  // void backward() const override;
+  void backward() const override;
 
   std::string name() const override { return "SubNode"; }
   std::string info() const override { return info_helper(name()); }
@@ -69,7 +69,7 @@ class MulNode : public Node {
   MulNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  // void backward() const override;
+  void backward() const override;
 
   std::string name() const override { return "MulNode"; }
   std::string info() const override { return info_helper(name()); }
@@ -80,7 +80,7 @@ class DivNode : public Node {
   DivNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
       : Node(children) {}
 
-  // void backward() const override;
+  void backward() const override;
 
   std::string name() const override { return "DivNode"; }
   std::string info() const override { return info_helper(name()); }
@@ -240,6 +240,17 @@ class SliceNode : public Node {
   void backward() const override;
 
   std::string name() const override { return "SliceNode"; }
+  std::string info() const override { return info_helper(name()); }
+};
+
+class ReduceNode : public Node {
+ public:
+  ReduceNode(const std::vector<std::shared_ptr<TensorImpl>>& children)
+      : Node(children) {}
+
+  // void backward() const override;
+
+  std::string name() const override { return "ReduceNode"; }
   std::string info() const override { return info_helper(name()); }
 };
 

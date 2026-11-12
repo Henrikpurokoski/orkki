@@ -3,12 +3,12 @@
 #include "include/tensor.hpp"
 
 int main() {
-  Tensor a = {{{2, 4}, {1, 3}}, {{5, 6}, {9, 8}}};
-  std::cout << a.show() << std::endl;
-  std::cout << a.info() << std::endl;
+  Tensor a = {{1, 2}};
+  a.set_grad(true);
+  Tensor b = {{2, 3}, {4, 5}};
+  b.set_grad(true);
+  Tensor c = b / a;
 
-  Tensor b = a.reduce({2, 1, 2});
-
-  std::cout << b.show() << std::endl;
-  std::cout << b.info() << std::endl;
+  c.backward();
+  std::cout << c.tree(true) << std::endl;
 }

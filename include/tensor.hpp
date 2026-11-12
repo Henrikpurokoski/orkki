@@ -57,6 +57,8 @@ struct TensorImpl {
   bool requires_grad_;
   // is this a view of another tensor?
   bool is_view_;
+  // is the gradient infectious?
+  bool infect_ = true;
 
   // constructor
   explicit TensorImpl(const std::shared_ptr<Storage>& storage,
@@ -87,7 +89,7 @@ struct TensorImpl {
   }
 
   // Backprob
-  void backward(std::shared_ptr<TensorImpl>& grad);
+  void backward(std::shared_ptr<TensorImpl> grad);
 
   // Gradient helper
   void set_grad(bool grad_flag);
@@ -100,6 +102,10 @@ class Tensor {
   friend Node;
   // constructors
   Tensor(std::initializer_list<TensorConstructorNode> nodes);
+
+  static Tensor From_impl(const std::shared_ptr<TensorImpl> impl) {
+    return Tensor(impl);
+  }
 
   static Tensor Zeros(const std::vector<std::size_t>& shape,
                       bool requires_grad = false);
@@ -198,6 +204,13 @@ class Tensor {
 
   // set gradient
   void set_grad(bool grad_bool) const;
+  void infect(bool infect_bool) const {
+    if (!defined()) {
+      throw std::runtime_error(
+          "Cannot use operator(), tensor has no implementation");
+    }
+    impl_->infect_ = infect_bool;
+  }
 
   // indexing
   template <typename... Args>
@@ -347,10 +360,11 @@ class Tensor {
   void backward();
 
   // info
-  std::string show(std::size_t max_k = 5, std::size_t precision = 2) const;
+  std::string show(bool show_name = false, bool show_grad = false,
+                   std::size_t max_k = 5, std::size_t precision = 2) const;
   std::string info() const;
   std::string child_info() const;
-  std::string tree() const;
+  std::string tree(bool show_grads = false) const;
 
  private:
   // constructor
@@ -380,7 +394,7 @@ class Tensor {
     }
     auto shape = impl_->shape_;
     auto strides = impl_->strides_;
-    bool requires_grad = impl_->requires_grad_;
+    bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
 
     Tensor result(shape, 0.0f, requires_grad, node);
     result.set_parent(node);
@@ -469,7 +483,8 @@ class Tensor {
           "Cannot use apply_binary(), tensor has no implementation");
     }
     auto result_shape = broadcast_shape(other.shape());
-    bool requires_grad = impl_->requires_grad_;
+    bool requires_grad = ((impl_->requires_grad_ && impl_->infect_) ||
+                          (other.requires_grad() && other.impl_->infect_));
 
     Tensor result(result_shape, 0.0f, requires_grad, node);
     result.set_parent(node);
@@ -500,7 +515,7 @@ class Tensor {
       throw std::runtime_error(
           "Cannot use apply_binary(), tensor has no implementation");
     }
-    if (requires_grad()) {
+    if (requires_grad() || other.requires_grad()) {
       throw std::runtime_error(
           "Cannot use inplace stuff on these fuckass tensors");
     }

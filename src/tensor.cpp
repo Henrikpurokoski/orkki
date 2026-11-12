@@ -32,14 +32,15 @@ TensorImpl::TensorImpl(const std::shared_ptr<Storage>& storage,
 }
 
 // tensorimpl backprob
-void TensorImpl::backward(std::shared_ptr<TensorImpl>& grad) {
-  if (grad->requires_grad_) {
-    throw std::runtime_error("Grad cannot required grad");
-  }
-  if (grad->shape_ != shape_) {
-    throw std::runtime_error("Grad has to be the same shape as implementation");
-  }
+void TensorImpl::backward(std::shared_ptr<TensorImpl> grad) {
   if (requires_grad_) {
+    if (grad->requires_grad_) {
+      throw std::runtime_error("Grad cannot required grad");
+    }
+    if (grad->shape_ != shape_) {
+      throw std::runtime_error(
+          "Grad has to be the same shape as implementation");
+    }
     if (grad_ == nullptr) {
       throw std::runtime_error("unexpected nullptr gradient");
     } else {
@@ -212,7 +213,8 @@ Tensor Tensor::operator+(const Tensor& other) const {
     throw std::runtime_error("Cannot use +, tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  if (requires_grad() || other.requires_grad()) {
+  if ((requires_grad() && impl_->infect_) ||
+      (other.requires_grad() && other.impl_->infect_)) {
     std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<AddNode>(operands);
   }
@@ -225,7 +227,8 @@ Tensor Tensor::operator-(const Tensor& other) const {
     throw std::runtime_error("Cannot use -, tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  if (requires_grad() || other.requires_grad()) {
+  if ((requires_grad() && impl_->infect_) ||
+      (other.requires_grad() && other.impl_->infect_)) {
     std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<SubNode>(operands);
   }
@@ -237,7 +240,8 @@ Tensor Tensor::operator*(const Tensor& other) const {
     throw std::runtime_error("Cannot use *, tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  if (requires_grad() || other.requires_grad()) {
+  if ((requires_grad() && impl_->infect_) ||
+      (other.requires_grad() && other.impl_->infect_)) {
     std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<MulNode>(operands);
   }
@@ -249,7 +253,8 @@ Tensor Tensor::operator/(const Tensor& other) const {
     throw std::runtime_error("Cannot use /, tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  if (requires_grad() || other.requires_grad()) {
+  if ((requires_grad() && impl_->infect_) ||
+      (other.requires_grad() && other.impl_->infect_)) {
     std::vector<std::shared_ptr<TensorImpl>> operands{impl_, other.impl_};
     node = std::make_shared<DivNode>(operands);
   }
@@ -354,7 +359,7 @@ Tensor Tensor::sum() const {
     throw std::runtime_error("Cannot use sum(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<SumNode>(operand);
@@ -370,7 +375,7 @@ Tensor Tensor::mean() const {
     throw std::runtime_error("Cannot use mean(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<MeanNode>(operand);
@@ -386,7 +391,7 @@ Tensor Tensor::max() const {
     throw std::runtime_error("Cannot use max(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<MaxNode>(operand);
@@ -402,7 +407,7 @@ Tensor Tensor::min() const {
     throw std::runtime_error("Cannot use min(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<MinNode>(operand);
@@ -419,7 +424,7 @@ Tensor Tensor::relu() const {
     throw std::runtime_error("Cannot use relu(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<ReluNode>(operand);
@@ -433,7 +438,7 @@ Tensor Tensor::sigmoid() const {
         "Cannot use sigmoid(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<SigmaNode>(operand);
@@ -447,7 +452,7 @@ Tensor Tensor::exp() const {
     throw std::runtime_error("Cannot use exp(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<ExpNode>(operand);
@@ -460,7 +465,7 @@ Tensor Tensor::log() const {
     throw std::runtime_error("Cannot use log(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<LogNode>(operand);
@@ -473,7 +478,7 @@ Tensor Tensor::sqrt() const {
     throw std::runtime_error("Cannot use sqrt(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<SqrtNode>(operand);
@@ -486,7 +491,7 @@ Tensor Tensor::abs() const {
     throw std::runtime_error("Cannot use abs(), tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<AbsNode>(operand);
@@ -549,7 +554,8 @@ Tensor Tensor::matmul(const Tensor& other) const {
 
   std::shared_ptr<Node> node = nullptr;
   bool requires_grad = false;
-  if ((*this).requires_grad() || other.requires_grad()) {
+  if (((*this).requires_grad() && impl_->infect_) ||
+      (other.requires_grad() && other.impl_->infect_)) {
     std::vector<std::shared_ptr<TensorImpl>> operands{(*this).impl_,
                                                       other.impl_};
     node = std::make_shared<MatmulNode>(operands);
@@ -587,6 +593,10 @@ Tensor Tensor::view() const {
   if (!defined()) {
     throw std::runtime_error("Cannot use view, tensor has no implementation");
   }
+  if (impl_->infect_ == false && impl_->requires_grad_ == true) {
+    throw std::runtime_error(
+        "cannot create non infectious views of tensor requiring grads!");
+  }
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
   auto strides = impl_->strides_;
@@ -611,6 +621,10 @@ Tensor Tensor::transpose() const {
   if (!defined()) {
     throw std::runtime_error(
         "Cannot use transpose, tensor has no implementation");
+  }
+  if (impl_->infect_ == false && impl_->requires_grad_ == true) {
+    throw std::runtime_error(
+        "cannot create non infectious views of tensor requiring grads!");
   }
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
@@ -639,6 +653,10 @@ Tensor Tensor::slice(
     std::vector<std::pair<std::size_t, std::size_t>> slices) const {
   if (!defined()) {
     throw std::runtime_error("Cannot use slice, tensor has no implementation");
+  }
+  if (impl_->infect_ == false && impl_->requires_grad_ == true) {
+    throw std::runtime_error(
+        "cannot create non infectious views of tensor requiring grads!");
   }
   auto storage = impl_->storage_;
   auto shape = impl_->shape_;
@@ -677,7 +695,7 @@ Tensor Tensor::copy() const {
     throw std::runtime_error("Cannot use copy, tensor has no implementation");
   }
   std::shared_ptr<Node> node = nullptr;
-  const bool requires_grad = impl_->requires_grad_;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
   if (requires_grad) {
     std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
     node = std::make_shared<CopyNode>(operand);
@@ -713,7 +731,13 @@ Tensor Tensor::reduce(std::vector<std::size_t> reduced_shape) const {
       padded_shape[i] = reduced_shape[i - diff];
     }
   }
-  Tensor result(reduced_shape, 0.0f);
+  std::shared_ptr<Node> node = nullptr;
+  const bool requires_grad = (impl_->requires_grad_ && impl_->infect_);
+  if (requires_grad) {
+    std::vector<std::shared_ptr<TensorImpl>> operand{impl_};
+    node = std::make_shared<ReduceNode>(operand);
+  }
+  Tensor result(reduced_shape, 0.0f, requires_grad, node);
 
   std::vector<std::size_t> temp_strides(padded_shape.size());
   std::size_t current_stride = 1;
@@ -762,18 +786,29 @@ void Tensor::backward() {
   return;
 }
 
-std::string Tensor::show(std::size_t max_k, std::size_t precision) const {
+std::string Tensor::show(bool show_name, bool show_grad, std::size_t max_k,
+                         std::size_t precision) const {
   if (!defined()) {
     throw std::runtime_error("Cannot use show, tensor has no implementation");
   }
   std::stringstream c;
   c << std::fixed << std::setprecision(precision);
+  if (show_name || (show_grad && impl_->requires_grad_)) {
+    c << "{\nTensor " << impl_ << ":\n";
+  }
   auto shape = impl_->shape_;
   if (shape.size() == 0) {
     c << "[" << (*this)() << "]";
   } else {
     std::vector<std::size_t> cur_idx(shape.size(), 0);
     format_dim(c, 0, cur_idx, max_k);
+  }
+  if (show_grad && impl_->requires_grad_) {
+    c << "\nGradient " << impl_->grad_ << ":\n";
+    c << Tensor(impl_->grad_).show(false, false, max_k, precision);
+  }
+  if (show_name || (show_grad && impl_->requires_grad_)) {
+    c << "\n}";
   }
   return c.str();
 }
@@ -814,12 +849,12 @@ std::string Tensor::child_info() const {
                           : impl_->child_node_->info()));
 }
 
-std::string Tensor::tree() const {
+std::string Tensor::tree(bool show_grads) const {
   if (!defined()) {
     throw std::runtime_error("Cannot use tree, tensor has no implementation");
   }
   std::stringstream c;
-  c << show();
+  c << show(show_grads, show_grads);
   if (!leaf()) {
     auto child = child_node();
     c << "\n\u2191\n";
@@ -828,7 +863,7 @@ std::string Tensor::tree() const {
     auto grandchildren = child->children();
     for (std::size_t i = 0; i < grandchildren.size(); ++i) {
       auto grandchild = Tensor(grandchildren[i]);
-      c << grandchild.tree();
+      c << grandchild.tree(show_grads);
       if (i < grandchildren.size() - 1) {
         c << "\n,\n";
       }
